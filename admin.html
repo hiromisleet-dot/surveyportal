@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>アンケート管理</title>
+<link rel="stylesheet" href="assets/common.css">
+<script src="assets/config.js"></script>
+<script src="assets/common.js"></script>
+<style>
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;align-items:center}
+.tabs button{background:#fff;border:1px solid var(--line);color:#555;border-radius:18px;padding:8px 16px;font-size:14px;cursor:pointer;font-family:inherit}
+.tabs button.on{background:var(--red);border-color:var(--red);color:#fff;font-weight:bold}
+.tabs button small{margin-left:4px;opacity:.8}
+.kibar{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+.kibar select{width:auto;margin:0;padding:8px 10px}
+.kibar .now{font-size:12px;color:#777}
+#createBtn:disabled{background:#bbb;border-color:#bbb;color:#fff;cursor:not-allowed;opacity:1}
+.req{font-size:11px;color:var(--red);margin-left:2px}
+.need{color:var(--red);font-size:13px;margin:0 0 8px}
+.blank{background:#fff9db !important}
+.done-url{word-break:break-all;background:#f6f6f6;border-radius:8px;padding:10px;font-size:13px;margin:8px 0 14px}
+.role{display:inline-block;font-size:11px;color:#7048b6;border:1px solid #7048b6;border-radius:8px;padding:0 6px;margin-right:4px}
+.ki{display:inline-block;font-size:11px;color:#2f855a;border:1px solid #2f855a;border-radius:8px;padding:0 6px;margin-right:4px}
+.actmenu{position:fixed;z-index:50;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.15);padding:6px 0;min-width:200px}
+.actmenu button{display:block;width:100%;text-align:left;background:none;border:0;padding:9px 16px;font-size:14px;font-family:inherit;color:#333;cursor:pointer}
+.actmenu button:hover{background:#f4f4f4}
+.actmenu button.danger{color:var(--red)}
+.actmenu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.month{font-weight:bold;color:#555;font-size:14px;margin:16px 0 6px;padding-bottom:4px;border-bottom:2px solid var(--line)}
+.month small{font-weight:normal;color:#888;margin-left:6px}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;color:#333;margin:6px 0 12px;cursor:pointer}
+.chk input{width:auto;margin:0}
+.guest{display:inline-block;font-size:11px;color:#b7791f;border:1px solid #b7791f;border-radius:8px;padding:0 6px;margin-left:4px}
+.csv-box{width:100%;height:160px;font-size:12px;font-family:monospace;white-space:pre;margin:8px 0 12px}
+.tile .lb{font-size:16px;font-weight:bold;color:#222;padding-bottom:8px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+#remindBox{width:100%;min-height:200px;line-height:1.6;font-size:14px;box-sizing:border-box;font-family:inherit}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">📋 Survey Portal</div>
+  <div class="center">アンケート管理</div>
+  <button class="btn gray sm" onclick="view=null;load()">↻ 最新にする</button>
+</header>
+<main id="app"><div class="loading">読み込み中…</div></main>
+<div id="layer"></div>
+
+<script>
+// ===== 作る人の画面 =====
+const PASS_KEY = "surveyPass", AUTHOR_KEY = "surveyAuthor", LIST_KEY = "surveyAdminList", ROLES_KEY = "surveyRoles", TAB_KEY = "surveyRoleTab", REMIND_KEY = "surveyRemind";
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k) || "null"); } catch(e){ return null; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
+};
+const REMIND_DEFAULT = "【リマインド】「{タイトル}」が未回答です（締め切り：{締め切り}）。\n{名前}\nお手すきの際にご回答をお願いします！";
+let REMIND = store.get(REMIND_KEY) || REMIND_DEFAULT;
+
+// ----- 期（4月1日と10月1日で1つ上がる。2026年10月1日〜が29期） -----
+function kiOfDate(v){
+  let d = v ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? v + "T00:00:00" : v) : new Date();
+  if(isNaN(d)) d = new Date();
+  const y = d.getFullYear(), m = d.getMonth() + 1;
+  const idx = m >= 10 ? y * 2 + 1 : m >= 4 ? y * 2 : (y - 1) * 2 + 1;
+  return 29 + idx - (2026 * 2 + 1);
+}
+const CUR_KI = kiOfDate(null);
+let kiView = CUR_KI;
+const kiOf = s => Number(s.ki) || kiOfDate(s.createdAt || s.deadline);
+
+let updating = false;
+const pass = () => sessionStorage.getItem(PASS_KEY) || "";
+let DATA = [];
+let ROLES = store.get(ROLES_KEY) || [];
+let tab = store.get(TAB_KEY) || "all";
+let view = null;
+let showClosed = false;
+const L0 = () => ({ kw: "", rt: "", dl: "", open: { sort: "deadline", dir: "asc" }, closed: { sort: "created", dir: "desc" } });
+let L = L0();
+const SORT_LABEL = { created: "作成日", deadline: "締め切り", title: "アンケート名", rate: "回答状況" };
+const rate = s => s.total ? Math.round(s.answered / s.total * 100) : 0;
+const isClosed = s => s.status === "締め切り";
+const roleName = id => (ROLES.find(r => r.id === id) || {}).name || "";
+const activeRoles = () => ROLES.filter(r => r.active);
+const createdOf = s => String(s.createdAt || s.deadline || "");
+function monthOf(s){
+  const v = createdOf(s);
+  if(!v) return "日付なし";
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(v + "T00:00:00") : new Date(v);
+  return isNaN(d) ? "日付なし" : `${d.getFullYear()}年${d.getMonth() + 1}月`;
+}
+const inTab = s => tab === "all" ? true : tab === "none" ? !s.roleId || !roleName(s.roleId) : s.roleId === tab;
+const inKi = s => kiView === "all" || kiOf(s) === Number(kiView);
+const shown = () => DATA.filter(s => inTab(s) && inKi(s));
+
+// ----- 入口（合言葉） -----
+function renderLogin(msg){
+  document.getElementById("app").innerHTML = `<div class="hello">アンケート管理<small>合言葉を入れてください。</small></div>
+    <div class="panel"><input id="pw" type="password" placeholder="合言葉" onkeydown="if(event.key==='Enter')login()">
+    ${msg ? `<p style="color:var(--red)">${esc(msg)}</p>` : ""}<button class="btn" onclick="login()">入る</button></div>`;
+  document.getElementById("pw").focus();
+}
+async function login(){
+  const pw = document.getElementById("pw").value;
+  if(!pw){ toast("合言葉を入れてください"); return; }
+  const r = await call("apiLogin", pw).catch(() => ({ ok: false }));
+  if(!r.ok) return renderLogin("合言葉が違います");
+  sessionStorage.setItem(PASS_KEY, pw);
+  load();
+}
+async function api(fn){
+  const args = Array.prototype.slice.call(arguments, 1);
+  try { return await call.apply(null, [fn, pass()].concat(args)); }
+  catch(e){ if(/合言葉/.test(errMsg(e))){ sessionStorage.removeItem(PASS_KEY); renderLogin("合言葉を入れ直してください"); } throw e; }
+}
+
+// ----- 一覧 -----
+async function load(){
+  if(!pass()) return renderLogin();
+  if(!DATA.length){ const c = store.get(LIST_KEY); if(c) DATA = c; }
+  updating = true;
+  if(DATA.length){ if(!view) render(); } else document.getElementById("app").innerHTML = `<div class="loading">読み込み中…</div>`;
+  api("apiRemindTemplate").then(t => { if(t){ REMIND = t; store.set(REMIND_KEY, t); } }).catch(() => {});
+  try {
+    const res = await Promise.all([api("apiAdminList"), api("apiRoles")]);
+    DATA = res[0]; ROLES = res[1];
+    store.set(LIST_KEY, DATA); store.set(ROLES_KEY, ROLES);
+    if(tab !== "all" && tab !== "none" && !ROLES.some(r => r.id === tab)) setTab("all", true);
+    updating = false;
+    if(!view) render();
+  } catch(e){
+    updating = false;
+    if(!pass()) return;
+    if(DATA.length){ if(!view) render(); toast("最新の一覧を読み込めませんでした。少し待ってから「最新にする」を押してください"); }
+    else document.getElementById("app").innerHTML = `<div class="empty">読み込みに失敗しました：${esc(errMsg(e))}<br><br><button class="btn" onclick="load()">もう一度読み込む</button></div>`;
+  }
+}
+function setTab(t, silent){
+  tab = t; store.set(TAB_KEY, t);
+  const el = document.getElementById("role");
+  if(el) el.value = (t !== "all" && t !== "none") ? t : "";
+  if(!silent) render();
+}
+function setKiView(v){ kiView = v === "all" ? "all" : Number(v); render(); }
+async function reloadMaster(){
+  modal(`<div class="loading">Notionからメンバー・班・役職を読み直しています…</div>`);
+  try {
+    const r = await api("apiReloadMaster");
+    closeModal();
+    toast(`読み直しました（在籍中 ${r.members}名・班 ${r.hans}件・役職 ${r.roles}件）`);
+    load();
+  } catch(e){ modal(`<p>読み直しに失敗しました：${esc(errMsg(e))}</p><button class="btn gray" onclick="closeModal()">閉じる</button>`); }
+}
+function keepInputs(){
+  const v = {};
+  ["ttl", "dl", "pub", "unit", "author", "role", "kiSel"].forEach(k => { const el = document.getElementById(k); if(el) v[k] = el.value; });
+  return v;
+}
+function restoreInputs(v){
+  Object.keys(v).forEach(k => { const el = document.getElementById(k); if(el && v[k] !== undefined && v[k] !== "") el.value = v[k]; });
+}
+function render(){
+  if(view) return renderDetail(view);
+  const kept = keepInputs();
+  renderList();
+  restoreInputs(kept);
+  checkReady();
+}
+function missingItems(){
+  const v = k => (document.getElementById(k) || {}).value || "";
+  const miss = [];
+  if(!v("ttl").trim()) miss.push("タイトル");
+  if(!v("dl")) miss.push("締め切り");
+  if(!v("unit")) miss.push("回答の単位");
+  if(ROLES.length && !v("role")) miss.push("役職");
+  if(!v("author").trim()) miss.push("作成者");
+  return miss;
+}
+function checkReady(){
+  const btn = document.getElementById("createBtn"), msg = document.getElementById("needMsg");
+  if(!btn) return;
+  const miss = missingItems();
+  const names = { ttl: "タイトル", dl: "締め切り", unit: "回答の単位", role: "役職", author: "作成者" };
+  Object.keys(names).forEach(k => { const el = document.getElementById(k); if(el) el.classList.toggle("blank", miss.includes(names[k])); });
+  btn.disabled = miss.length > 0;
+  if(msg){ msg.style.display = miss.length ? "" : "none"; msg.textContent = "必要事項をすべて入力してください（未入力：" + miss.join("・") + "）"; }
+}
+function roleSelect(id, selected, onchg){
+  return `<select id="${id}"${onchg ? ` onchange="${onchg}"` : ""}><option value="">（役職を選ばない）</option>` +
+    activeRoles().map(r => `<option value="${r.id}" ${r.id === selected ? "selected" : ""}>${esc(r.name)}</option>`).join("") + `</select>`;
+}
+function kiSelect(id, selected){
+  const sel = Number(selected) || CUR_KI;
+  const opts = [CUR_KI - 1, CUR_KI, CUR_KI + 1];
+  if(opts.indexOf(sel) < 0) opts.push(sel);
+  return `<select id="${id}">` + opts.sort((a, b) => a - b).map(k =>
+    `<option value="${k}" ${k === sel ? "selected" : ""}>${k}期${k === CUR_KI ? "（今期）" : k === CUR_KI + 1 ? "（次の期）" : k === CUR_KI - 1 ? "（前の期）" : ""}</option>`).join("") + `</select>`;
+}
+function kiBarHtml(){
+  const kis = {};
+  DATA.forEach(s => { kis[kiOf(s)] = true; });
+  kis[CUR_KI] = true;
+  const list = Object.keys(kis).map(Number).sort((a, b) => b - a);
+  return `<div class="kibar"><label style="margin:0">表示する期</label>
+    <select onchange="setKiView(this.value)">
+      ${list.map(k => `<option value="${k}" ${kiView === k ? "selected" : ""}>${k}期${k === CUR_KI ? "（今期）" : ""}</option>`).join("")}
+      <option value="all" ${kiView === "all" ? "selected" : ""}>すべての期</option>
+    </select><span class="now">今期は${CUR_KI}期です</span></div>`;
+}
+function tabsHtml(){
+  if(!ROLES.length) return "";
+  const cnt = f => DATA.filter(s => inKi(s) && !isClosed(s) && f(s)).length;
+  const b = (t, label, n) => `<button class="${tab === t ? "on" : ""}" onclick="setTab('${t}')">${esc(label)}<small>${n}</small></button>`;
+  let h = `<div class="tabs">` + b("all", "すべて", cnt(() => true));
+  activeRoles().forEach(r => { h += b(r.id, r.name, cnt(s => s.roleId === r.id)); });
+  const none = cnt(s => !s.roleId || !roleName(s.roleId));
+  if(none || tab === "none") h += b("none", "未設定", none);
+  return h + `</div>`;
+}
+function renderList(){
+  const list = shown();
+  const closedN = list.filter(isClosed).length;
+  const cur = DATA.filter(s => inTab(s) && kiOf(s) === CUR_KI);
+  const curOpen = DATA.filter(s => inTab(s) && s.status === "受付中");
+  const curClosedN = cur.filter(isClosed).length;
+  const notAll = curOpen.filter(s => s.total > 0 && s.answered < s.total).length;
+  const o = (v, t, c) => `<option value="${v}" ${c === v ? "selected" : ""}>${t}</option>`;
+  const tabName = tab === "all" ? "" : tab === "none" ? "役職が未設定の" : roleName(tab) + "の";
+  const kiName = kiView === "all" ? "すべての期" : kiView + "期";
+  document.getElementById("app").innerHTML = `<div class="hello">アンケート管理<small>対象者は公開した時点で「在籍中」のメンバーに固定されます。${updating ? '　<span class="muted">最新の情報を確認中…</span>' : ""}</small></div>
+    ${kiBarHtml()}
+    ${tabsHtml()}
+    <div class="panel"><h2>新しいアンケートを作る</h2>
+      <div class="form-grid">
+        <div><label>タイトル <span class="req">必須</span></label><input id="ttl" placeholder="例：11月 定例会の満足度アンケート" oninput="checkReady()"></div>
+        <div><label>締め切り <span class="req">必須</span></label><input id="dl" type="date" min="${todayStr()}" onchange="checkReady()" oninput="checkReady()"></div>
+        <div><label>公開日時（空ならすぐ公開）</label><input id="pub" type="datetime-local"></div>
+      </div>
+      <div class="form-grid">
+        <div><label>役職（どの役職が出すアンケートか）${ROLES.length ? ' <span class="req">必須</span>' : ""}</label>${roleSelect("role", tab !== "all" && tab !== "none" ? tab : "", "checkReady()")}</div>
+        <div><label>回答の単位 <span class="req">必須</span></label><select id="unit" onchange="checkReady()"><option value="">…</option><option value="人ごと">人ごと（1人1回答）</option><option value="班ごと">班ごと（1班1回答）</option></select></div>
+        <div><label>期</label>${kiSelect("kiSel", CUR_KI)}</div>
+      </div>
+      <div class="form-grid">
+        <div><label>作成者 <span class="req">必須</span></label><input id="author" placeholder="お名前" value="${esc(localStorage.getItem(AUTHOR_KEY) || "")}" oninput="checkReady()"></div>
+        <div><label>リスト外の回答</label><label class="chk"><input type="checkbox" id="guest"> 名簿にない人も回答できるようにする</label></div>
+      </div>
+      <p id="needMsg" class="need">必要事項をすべて入力してください</p>
+      <button class="btn" id="createBtn" onclick="createSurvey()" disabled>作成する</button>
+      <p class="muted">作成すると、名前のプルダウン入りのGoogleフォームができます。完了の画面に出るリンクから、聞きたい質問を足してください。公開日時を入れた場合は、その時刻まで「公開待ち」になります（最大15分遅れます）。期は今期が最初から入っています。次の期のアンケートを先に作るときは切り替えてください。</p></div>
+    <div class="panel"><h2>${tabName}回答状況</h2>
+      <div class="dash">
+        <div class="tile"><div class="lb">📝 受付中のアンケート</div><div class="num">${curOpen.length}<small>件</small></div><div class="sub">今期（${CUR_KI}期）の締め切り済み ${curClosedN}件</div></div>
+        <div class="tile"><div class="lb">⏳ まだ全員が回答していないアンケート</div><div class="num">${notAll}<small>件</small></div><div class="sub">受付中 ${curOpen.length}件のうち</div></div>
+      </div>
+      <div class="filters">
+        <input placeholder="🔍 アンケート名で検索" value="${esc(L.kw)}" oninput="L.kw=this.value;updateList()">
+        <select onchange="L.rt=this.value;updateList()">${o("", "回答状況：すべて", L.rt)}${o("lo", "50%未満", L.rt)}${o("mid", "50〜79%", L.rt)}${o("hi", "80%以上", L.rt)}</select>
+        <button class="btn gray sm" onclick="L=L0();render()">条件をクリア</button>
+      </div></div>
+    <div class="panel"><h2>📝 受付中・公開待ちのアンケート（${kiName}・${list.filter(s => !isClosed(s)).length}件）</h2><div id="list_open">${listHtml("open")}</div></div>
+    <div class="panel past"><details ${showClosed ? "open" : ""} ontoggle="showClosed=this.open"><summary>🔒 締め切り済みのアンケート（${kiName}・${closedN}件）</summary>
+      <div class="in"><div id="list_closed">${listHtml("closed")}</div></div></details></div>
+    <button class="outline" onclick="reloadMaster()">👥 メンバー・班・役職をNotionから読み直す</button>
+    <p class="muted" style="text-align:center">入会・退会や班替え、役職の追加をしたあとに押すと、すぐ画面に反映されます（ふだんは1日1回、自動で読み直します）。</p>`;
+}
+function listRows(kind){
+  let rows = shown().filter(s => kind === "open" ? !isClosed(s) : isClosed(s));
+  const kw = L.kw.trim();
+  if(kw) rows = rows.filter(s => s.title.includes(kw));
+  if(L.rt) rows = rows.filter(s => { const r = rate(s); return L.rt === "lo" ? r < 50 : L.rt === "mid" ? (r >= 50 && r < 80) : r >= 80; });
+  if(kind === "open" && L.dl) rows = rows.filter(s => { const n = daysLeft(s.deadline); return n >= 0 && n <= Number(L.dl); });
+  const by = {
+    created: (a, b) => createdOf(a).localeCompare(createdOf(b)) || a.title.localeCompare(b.title, "ja", { numeric: true }),
+    deadline: (a, b) => String(a.deadline).localeCompare(String(b.deadline)) || a.title.localeCompare(b.title, "ja", { numeric: true }),
+    title: (a, b) => a.title.localeCompare(b.title, "ja", { numeric: true }),
+    rate: (a, b) => rate(a) - rate(b) || a.answered - b.answered,
+  };
+  rows.sort(by[L[kind].sort] || by.deadline);
+  if(L[kind].dir === "desc") rows.reverse();
+  return rows;
+}
+function tagHtml(s){
+  return { "受付中": '<span class="tag">受付中</span>', "公開待ち": '<span class="tag wait">公開待ち</span>', "生成中": '<span class="tag gen">作成中…</span>',
+    "エラー": '<span class="tag err">エラー</span>', "締め切り": '<span class="tag closed">締め切り</span>' }[s.status] || esc(s.status);
+}
+/** 各行のボタン。よく使うボタンを1つだけ出し、ほかは「その他 ▾」のメニューにまとめる */
+function actsHtml(s){
+  const b = (cls, fn, label) => `<button class="mini ${cls}" onclick="${fn}('${s.id}')">${label}</button>`;
+  const more = `<button class="mini gray" onclick="openActMenu(event,'${s.id}')">その他 ▾</button>`;
+  switch(s.status){
+    case "公開待ち": return b("", "publishNow", "今すぐ公開") + more;
+    case "受付中":   return b("", "openDetail", "回答一覧") + more;
+    case "締め切り": return b("", "openDetail", "回答一覧") + more;
+    case "エラー":   return `<span class="muted">作成に失敗しました</span>` + b("gray", "removeSurvey", "削除");
+    default:         return `<button class="mini" disabled>準備中</button>` + b("gray", "removeSurvey", "削除");
+  }
+}
+/** 「その他」メニューの中身（状態ごと） */
+function actMenuItems(s){
+  const it = (fn, label, cls) => ({ fn: fn, label: label, cls: cls || "" });
+  const items = [];
+  if(s.status === "受付中") items.push(it("copyRemind", "📋 リマインド文"));
+  if((s.status === "受付中" || s.status === "公開待ち") && s.formUrl) items.push(it("formLinkModal", "🔗 フォームのURLをコピー"));
+  if(s.status === "締め切り") items.push(it("reopen", "↩ 受付を再開"));
+  items.push(it("editSurvey", "✏️ 編集"));
+  if(s.status !== "締め切り" && s.editUrl) items.push(it("editQuestions", "📝 質問を編集"));
+  items.push(it("duplicate", "📄 複製"));
+  items.push("hr");
+  items.push(it("removeSurvey", "🗑 削除", "danger"));
+  return items;
+}
+/** 「その他 ▾」を押したとき、ボタンの下にメニューを開く（もう一度押すと閉じる） */
+function openActMenu(ev, id){
+  ev.stopPropagation();
+  const cur = document.getElementById("actMenu");
+  const same = cur && cur.dataset.id === id;
+  closeActMenu();
+  if(same) return;
+  const s = find(id);
+  if(!s) return;
+  const m = document.createElement("div");
+  m.id = "actMenu"; m.className = "actmenu"; m.dataset.id = id;
+  m.innerHTML = actMenuItems(s).map(x => x === "hr" ? "<hr>"
+    : `<button class="${x.cls}" onclick="closeActMenu();${x.fn}('${id}')">${x.label}</button>`).join("");
+  m.addEventListener("click", e => e.stopPropagation());
+  document.body.appendChild(m);
+  const r = ev.currentTarget.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+  let left = Math.min(r.right - w, window.innerWidth - w - 8); if(left < 8) left = 8;
+  let top = r.bottom + 4; if(top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+  m.style.left = left + "px"; m.style.top = top + "px";
+}
+function closeActMenu(){ const m = document.getElementById("actMenu"); if(m) m.remove(); }
+document.addEventListener("click", closeActMenu);
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeActMenu(); });
+window.addEventListener("scroll", closeActMenu, true);
+window.addEventListener("resize", closeActMenu);
+/** 質問を編集（フォームの編集画面を小さいウィンドウで開く） */
+function editQuestions(id){ const s = find(id); if(s && s.editUrl) openFormWin(s.editUrl); }
+function rowHtml(s){
+  const kiTag = kiView === "all" || kiOf(s) !== CUR_KI ? `<span class="ki">${kiOf(s)}期</span>` : "";
+  return `<div class="li c ${isClosed(s) ? "closed" : ""}">
+      <div class="tg">${tagHtml(s)}</div>
+      <div class="t">${esc(s.title)}<small>${kiTag}${tab === "all" && roleName(s.roleId) ? `<span class="role">${esc(roleName(s.roleId))}</span>` : ""}${s.unit === "班ごと" ? "班ごと" : "人ごと"}${s.allowGuest ? '<span class="guest">リスト外も受付</span>' : ""}${s.status === "公開待ち" && s.publishAt ? "・公開 " + fmt(s.publishAt) : ""}${s.author ? "・作成 " + esc(s.author) : ""}</small></div>
+      <div class="prog">${s.status === "公開待ち" || s.status === "生成中" ? '<span class="muted">公開前</span>' : `<span class="bar"><span style="width:${rate(s)}%"></span></span><b>${rate(s)}%</b><small>${s.answered} / ${s.total}${s.unit === "班ごと" ? "班" : "名"}${s.guest ? `＋リスト外${s.guest}` : ""}</small>`}</div>
+      <div class="dl">${fmtDl(s.deadline)}${s.status === "受付中" ? leftHtml(s.deadline) : ""}</div>
+      <div class="acts">${actsHtml(s)}</div></div>`;
+}
+function listHtml(kind){
+  const rows = listRows(kind), st = L[kind], all = shown().filter(s => kind === "open" ? !isClosed(s) : isClosed(s)).length;
+  const o = (v, t, cur) => `<option value="${v}" ${cur === v ? "selected" : ""}>${t}</option>`;
+  let h = `<div class="sorts"><span class="muted">並び順</span>
+      <select onchange="L.${kind}.sort=this.value;updateList()">${Object.keys(SORT_LABEL).map(k => o(k, SORT_LABEL[k], st.sort)).join("")}</select>
+      <button class="btn gray sm" onclick="L.${kind}.dir=L.${kind}.dir==='asc'?'desc':'asc';updateList()">${st.dir === "asc" ? "▲ 昇順" : "▼ 降順"}</button>
+      ${kind === "open" ? `<select onchange="L.dl=this.value;updateList()">${o("", "締め切りまで：すべて", L.dl)}${o("7", "締め切りまで7日以内", L.dl)}${o("30", "締め切りまで30日以内", L.dl)}</select>` : ""}
+    </div><p class="hit">該当 <b>${rows.length}</b> / ${all}件</p>`;
+  if(!all) return `<div class="empty">${kind === "open" ? "受付中のアンケートはありません" : "締め切り済みのアンケートはまだありません"}</div>`;
+  if(!rows.length) return h + `<div class="empty">条件に合うアンケートはありません</div>`;
+  if(st.sort === "created"){
+    const groups = [];
+    rows.forEach(s => { const m = monthOf(s); const g = groups[groups.length - 1]; if(g && g.m === m) g.rows.push(s); else groups.push({ m: m, rows: [s] }); });
+    return h + groups.map(g => `<div class="month">${esc(g.m)}<small>${g.rows.length}件</small></div><div class="list">${g.rows.map(rowHtml).join("")}</div>`).join("");
+  }
+  return h + `<div class="list">` + rows.map(rowHtml).join("") + `</div>`;
+}
+function updateList(){
+  document.getElementById("list_open").innerHTML = listHtml("open");
+  document.getElementById("list_closed").innerHTML = listHtml("closed");
+}
+const find = id => DATA.find(s => s.id === id);
+
+// ----- 作成・公開・締め切り・再開・複製・削除 -----
+async function createSurvey(){
+  if(missingItems().length){ checkReady(); return; }
+  const p = { title: document.getElementById("ttl").value.trim(), deadline: document.getElementById("dl").value,
+    publishAt: document.getElementById("pub").value, unit: document.getElementById("unit").value,
+    author: document.getElementById("author").value.trim(), roleId: document.getElementById("role").value,
+    ki: Number(document.getElementById("kiSel").value) || CUR_KI, allowGuest: !!(document.getElementById("guest") || {}).checked };
+  if(p.deadline < todayStr()){ toast("締め切りは今日以降の日付にしてください"); return; }
+  localStorage.setItem(AUTHOR_KEY, p.author);
+  const btn = document.getElementById("createBtn"); btn.disabled = true;
+  modal(`<h3 style="margin-top:0">作成中…</h3><div class="loading">Googleフォームを作成しています。30秒ほどお待ちください。</div>`);
+  try {
+    const r = await api("apiCreate", p);
+    doneModal("作成が完了しました", (r.status === "受付中" ? "受付を開始しました。" : "公開日時まで「公開待ち」になります。") + `（${p.ki}期のアンケートとして登録しました）`, r.editUrl);
+    ["ttl", "dl", "pub", "unit"].forEach(k => { const el = document.getElementById(k); if(el) el.value = ""; });
+    const gc = document.getElementById("guest"); if(gc) gc.checked = false;
+    const ks = document.getElementById("kiSel"); if(ks) ks.value = CUR_KI;
+    load();
+  } catch(e){
+    modal(`<h3 style="margin-top:0">作成できませんでした</h3><p>${esc(errMsg(e))}</p><button class="btn gray" onclick="closeModal()">閉じる</button>`);
+  }
+  checkReady();
+}
+function doneModal(title, note, url){
+  modal(`<h3 style="margin-top:0">✅ ${esc(title)}</h3><p class="muted">${esc(note)}</p>
+    ${url ? `<p style="margin-bottom:4px"><b>質問の追加はこちら</b></p>
+    <div class="done-url"><a href="#" onclick="openFormWin('${url}');return false;">${esc(url)}</a></div>
+    <button class="btn" onclick="openFormWin('${url}')">フォームの編集画面を開く</button> ` : ""}
+    <button class="btn gray" onclick="closeModal()">閉じる</button>`);
+}
+let formWin = null, formTimer = null;
+function openFormWin(url){
+  const w = Math.min(900, Math.round(screen.availWidth * 0.6)), h = Math.round(screen.availHeight * 0.9);
+  const left = screen.availWidth - w, top = 0;
+  formWin = window.open(url, "surveyFormEdit", `popup=yes,width=${w},height=${h},left=${left},top=${top}`);
+  if(!formWin){ window.open(url, "_blank"); return; }
+  formWin.focus();
+  modal(`<h3 style="margin-top:0">✏️ フォームを編集中</h3>
+    <p>横に開いたウィンドウで質問を足してください。<b>終わったらそのウィンドウを閉じる</b>と、この画面に戻ります。</p>
+    <p class="muted">Googleフォームは自動で保存されるので、保存ボタンはありません。</p>
+    <button class="btn gray" onclick="formWin && formWin.focus()">編集ウィンドウを前に出す</button>
+    <button class="btn" onclick="finishFormEdit()">編集を終える</button>`);
+  clearInterval(formTimer);
+  formTimer = setInterval(() => { if(!formWin || formWin.closed) finishFormEdit(); }, 800);
+}
+function finishFormEdit(){
+  clearInterval(formTimer); formTimer = null;
+  try { if(formWin && !formWin.closed) formWin.close(); } catch(e){}
+  formWin = null;
+  modal(`<h3 style="margin-top:0">✅ おつかれさまでした</h3><p>フォームの編集が終わりました。</p>
+    <button class="btn" onclick="closeModal()">アンケート管理に戻る</button>`);
+  view = null; load();
+}
+async function runAction(label, fn, args){
+  modal(`<div class="loading">${label}中…</div>`);
+  try { await api.apply(null, [fn].concat(args)); closeModal(); toast(label + "しました"); view = null; load(); }
+  catch(e){ modal(`<p>${label}に失敗しました：${esc(errMsg(e))}</p><button class="btn gray" onclick="closeModal()">閉じる</button>`); }
+}
+function publishNow(id){
+  const s = find(id);
+  if(confirm(`「${s.title}」を今すぐ公開しますか？\n公開した時点の在籍メンバーが対象になります。`)) runAction("公開", "apiPublishNow", [id]);
+}
+function closeSurvey(id){
+  const s = find(id);
+  if(confirm(`「${s.title}」を締め切りますか？\n締め切ると、回答も修正もできなくなります。`)) runAction("締め切り", "apiClose", [id]);
+}
+function reopen(id){
+  const s = find(id);
+  const cur = /T/.test(s.deadline) ? s.deadline.slice(0, 16) : s.deadline + "T23:59";
+  const def = new Date(cur) > new Date() ? cur : "";
+  modal(`<h3 style="margin-top:0">受付を再開</h3><p>${esc(s.title)}</p>
+    <label>新しい締め切り</label><input id="rd" type="datetime-local" value="${def}">
+    <p class="muted">対象者は公開したときのままです。すでに答えた人の回答も残ります。</p>
+    <button class="btn" onclick="const v=document.getElementById('rd').value;if(!v||new Date(v)<=new Date()){toast('今より後の日時を入れてください');return;}runAction('再開','apiReopen',['${id}',v])">再開する</button>
+    <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
+}
+function duplicate(id){
+  const s = find(id);
+  modal(`<h3 style="margin-top:0">アンケートを複製</h3><p class="muted">質問はそのまま引き継ぎます。回答は引き継ぎません。回答の単位（${esc(s.unit)}）も同じになります。完了の画面に、質問を編集するリンクが出ます。</p>
+    <label>タイトル</label><input id="dt" value="${esc(s.title)}（コピー）">
+    <label>役職</label>${roleSelect("dr", s.roleId || (tab !== "all" && tab !== "none" ? tab : ""))}
+    <label>期</label>${kiSelect("dk", CUR_KI)}
+    <label>締め切り</label><input id="dd" type="date" min="${todayStr()}">
+    <label>公開日時（空ならすぐ公開）</label><input id="dp" type="datetime-local">
+    <button class="btn" onclick="doDuplicate('${id}')">複製する</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
+}
+async function doDuplicate(id){
+  const p = { title: document.getElementById("dt").value.trim(), deadline: document.getElementById("dd").value,
+    publishAt: document.getElementById("dp").value, author: localStorage.getItem(AUTHOR_KEY) || "", roleId: document.getElementById("dr").value,
+    ki: Number(document.getElementById("dk").value) || CUR_KI };
+  if(!p.title || !p.deadline){ toast("タイトルと締め切りを入れてください"); return; }
+  modal(`<h3 style="margin-top:0">複製中…</h3><div class="loading">Googleフォームを複製しています。30秒ほどお待ちください。</div>`);
+  try {
+    const r = await api("apiDuplicate", id, p);
+    doneModal("複製が完了しました", `質問は元のアンケートから引き継いでいます。（${p.ki}期のアンケートとして登録しました）`, r.editUrl);
+    view = null; load();
+  } catch(e){
+    modal(`<h3 style="margin-top:0">複製できませんでした</h3><p>${esc(errMsg(e))}</p><button class="btn gray" onclick="closeModal()">閉じる</button>`);
+  }
+}
+function removeSurvey(id){
+  const s = find(id);
+  const needType = s.answered > 0;
+  modal(`<h3 style="margin-top:0">アンケートを削除</h3><p><b>${esc(s.title)}</b></p>
+    <p style="font-size:14px">次のものをゴミ箱に移します。30日以内なら、Notionとドライブのゴミ箱から元に戻せます。</p>
+    <ul style="font-size:14px;padding-left:20px;margin:0 0 12px">
+      <li>Googleフォーム（届いた回答も一緒に移ります）</li><li>Notionのアンケート管理の行</li><li>Notionの回答の行</li></ul>
+    ${needType ? `<p style="color:var(--red);font-size:14px">すでに${s.answered}件の回答があります。削除する場合は、下に「削除」と入れてください。</p><input id="delchk" placeholder="削除">` : ""}
+    <button class="btn" onclick="doRemove('${id}', ${needType})">削除する</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
+}
+function doRemove(id, needType){
+  if(needType && document.getElementById("delchk").value.trim() !== "削除"){ toast("「削除」と入れてください"); return; }
+  runAction("削除", "apiDelete", [id]);
+}
+
+// ----- リマインド文 -----
+/** ひな形にタイトル・締め切り・名前を入れる。人ごとは「〇〇さん」、班ごとは「A01班」 */
+function remindText(title, deadline, names, unit){
+  const who = names.map(n => {
+    const v = String(n).split("｜").pop();
+    if(unit === "班ごと") return /班$/.test(v) ? v : v + "班";
+    return v + "さん";
+  }).join("、");
+  return String(REMIND || REMIND_DEFAULT)
+    .split("{タイトル}").join(title)
+    .split("{締め切り}").join(fmtDl(deadline))
+    .split("{名前}").join(who);
+}
+/** リマインド文をポップアップで出す。その場で直してから、ボタンで全部コピーできる */
+function remindModal(msg){
+  modal(`<h3 style="margin-top:0">📋 リマインド文</h3>
+    <p class="muted">必要なら、ここで文章を直してからコピーしてください。</p>
+    <textarea id="remindBox"></textarea>
+    <div style="margin-top:12px"><button class="btn" onclick="copyRemindBox()">全部コピーする</button>
+    <button class="btn gray" onclick="closeModal()">閉じる</button></div>`);
+  const box = document.getElementById("remindBox");
+  box.value = msg;
+  box.focus();
+}
+/** ポップアップの文章を全部コピーする */
+function copyRemindBox(){
+  const box = document.getElementById("remindBox");
+  if(!box) return;
+  const v = box.value;
+  const fallback = () => { box.select(); try { document.execCommand("copy"); toast("コピーしました"); } catch(e){ toast("コピーできませんでした。選んでコピーしてください"); } };
+  if(navigator.clipboard) navigator.clipboard.writeText(v).then(() => toast("コピーしました")).catch(fallback);
+  else fallback();
+}
+/** フォームのURLをポップアップで出す（リスト外の人や外部の人に送るとき用）。ボタンでコピーできる */
+function formLinkModal(id){
+  const s = find(id);
+  if(!s || !s.formUrl){ toast("フォームのURLがまだありません"); return; }
+  const notes = [];
+  if(s.status === "公開待ち") notes.push(`<p class="need">まだ受付前です。${s.publishAt ? fmt(s.publishAt) + " の公開" : "公開"}までは、このURLを開いても回答できません。</p>`);
+  notes.push(s.allowGuest
+    ? `<p class="muted">名簿にない方は、お名前の欄で「リストにない方」を選んで、お名前を入力してから回答します。</p>`
+    : `<p class="muted">このアンケートは「リスト外も受付」がオフなので、名簿にない方は回答できません。${s.status === "公開待ち" ? "受け付けるときは「編集」からオンにしてください。" : ""}</p>`);
+  modal(`<h3 style="margin-top:0">🔗 フォームのURL</h3>
+    <p class="muted">${esc(s.title)}</p>
+    <input id="formLinkBox" type="text" readonly style="width:100%;box-sizing:border-box">
+    ${notes.join("")}
+    <div style="margin-top:12px"><button class="btn" onclick="copyFormLink()">URLをコピー</button>
+    <button class="btn gray" onclick="window.open(document.getElementById('formLinkBox').value,'_blank')">開いて確かめる</button>
+    <button class="btn gray" onclick="closeModal()">閉じる</button></div>`);
+  const box = document.getElementById("formLinkBox");
+  box.value = s.formUrl;
+  box.addEventListener("focus", () => box.select());
+}
+/** ポップアップのURLをコピーする */
+function copyFormLink(){
+  const box = document.getElementById("formLinkBox");
+  if(!box) return;
+  const fallback = () => { box.select(); try { document.execCommand("copy"); toast("コピーしました"); } catch(e){ toast("コピーできませんでした。選んでコピーしてください"); } };
+  if(navigator.clipboard) navigator.clipboard.writeText(box.value).then(() => toast("コピーしました")).catch(fallback);
+  else fallback();
+}
+async function copyRemind(id){
+  const s = find(id);
+  toast("未回答の方を確認中…");
+  try { const sum = await api("apiSummary", id); if(!sum.unanswered.length){ toast("未回答の方はいません"); return; } remindModal(remindText(s.title, s.deadline, sum.unanswered, s.unit)); }
+  catch(e){ toast("読み込みに失敗しました"); }
+}
+
+// ----- 詳細（集計と未回答） -----
+let SUM = null;
+async function openDetail(id, fresh){
+  view = id; SUM = null;
+  document.getElementById("app").innerHTML = `<div class="loading">集計中…</div>`;
+  try { SUM = await api("apiSummary", id, !!fresh); renderDetail(id); }
+  catch(e){ document.getElementById("app").innerHTML = `<div class="empty">読み込みに失敗しました：${esc(errMsg(e))}<br><br><button class="btn" onclick="view=null;render()">一覧に戻る</button></div>`; }
+}
+function renderDetail(id){
+  const s = find(id), m = SUM;
+  if(!m) return openDetail(id);
+  const unitW = m.unit === "班ごと" ? "班" : "名";
+  const qHtml = m.questions.map(q => {
+    if(q.kind === "choice"){
+      const n = q.answeredCount;
+      return `<div class="sumq"><div class="sumt">📊 ${esc(q.title)}${q.multi ? "（複数選択）" : ""}</div>` + q.items.map(it => {
+        const pct = n ? Math.round(it.count / n * 100) : 0;
+        return `<div class="sr"><span title="${esc(it.choice)}">${esc(it.choice)}</span><span class="sb"><span style="width:${pct}%"></span></span><span class="sn">${it.count}${unitW}<small>${pct}%</small></span></div>`;
+      }).join("") + (q.others.length ? `<p class="muted">その他の内容：${q.others.map(x => esc(x.value) + "（" + esc(x.label) + "）").join("、")}</p>` : "") + `</div>`;
+    }
+    if(q.kind === "grid"){
+      return `<div class="sumq" style="grid-column:1/-1"><div class="sumt">📊 ${esc(q.title)}</div><div class="scroll"><table class="tbl"><tr><th></th>${q.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr>` +
+        q.rows.map(r => `<tr><td>${esc(r.row)}</td>${q.columns.map(c => `<td>${r.counts[c]}</td>`).join("")}</tr>`).join("") + `</table></div></div>`;
+    }
+    return "";
+  }).join("");
+  const tHtml = m.questions.filter(q => q.kind === "text").map(q => `<div class="txt"><div class="h">💬 ${esc(q.title)}（${q.answers.length}件）</div>` +
+    (q.answers.length ? q.answers.map(a => `<div class="r"><b>${esc(a.label)}</b>${esc(a.value)}</div>`).join("") : `<div class="r muted">まだ回答はありません</div>`) + `</div>`).join("");
+  const rn = s ? roleName(s.roleId) : "";
+  document.getElementById("app").innerHTML = `<button class="btn gray" onclick="view=null;render()">‹ 一覧に戻る</button>
+    <div class="hello" style="margin-top:16px">${esc(m.title)}<small>${s ? kiOf(s) + "期　" : ""}${rn ? "役職：" + esc(rn) + "　" : ""}締め切り：${fmtDl(m.deadline)}　状態：${esc(m.status)}　回答の単位：${esc(m.unit)}</small></div>
+    <div class="panel" style="text-align:center"><div class="donut">${m.rate}%</div>
+      <div class="muted">${m.answered} / ${m.total}${unitW} 回答${m.guest ? `　＋ リスト外の回答 ${m.guest}件（回答率には入れていません）` : ""}</div>
+      <div class="bar" style="max-width:400px;margin:12px auto 0"><span style="width:${m.rate}%"></span></div></div>
+    <div class="panel"><h2>未回答の${m.unit === "班ごと" ? "班" : "方"}（${m.unanswered.length}${unitW}）</h2>
+      ${m.unanswered.length ? `<div class="names">${m.unanswered.map(n => `<span>${esc(n)}</span>`).join("")}</div>
+        <button class="btn" onclick="remindModal(remindText(SUM.title, SUM.deadline, SUM.unanswered, SUM.unit))">📋 リマインド文を作る</button>` : `<div class="empty">🎉 全員回答済みです！</div>`}</div>
+    <div class="panel"><h2>回答の集計（${m.answered}${unitW}）</h2>
+      ${m.questions.length ? "" : `<div class="empty">お名前以外の質問がまだありません。フォームの編集画面から質問を足してください。</div>`}
+      ${qHtml ? `<div class="sum">${qHtml}</div>` : ""}${tHtml}
+      <p class="muted">修正された回答は、最新の内容で集計しています。新しい回答が届くと、集計も自動で新しくなります。フォームに質問を足したあとは、下のボタンで作り直してください。</p>
+      <button class="btn gray sm" onclick="openDetail('${id}', true)">↻ 集計を作り直す</button>
+      <button class="btn sm" onclick="csvExport('${id}')">⬇ CSVで出力</button></div>
+    ${m.status === "受付中" ? `<button class="outline" onclick="closeSurvey('${id}')">このアンケートを締め切る</button>
+      <p class="muted" style="text-align:center">締め切り（${fmtDl(m.deadline)}）を過ぎると自動で締め切られます。早めに締めたいときはこのボタンを押してください。</p>`
+    : m.status === "締め切り" ? `<button class="outline" onclick="reopen('${id}')">受付を再開する</button>` : ""}`;
+}
+// ----- 編集（役職・期・回答の単位） -----
+/** 編集のポップアップを出す。回答の単位は公開待ちのときだけ選べる */
+function editSurvey(id){
+  const s = find(id);
+  const canUnit = s.status === "公開待ち";
+  const u = s.unit || "人ごと";
+  modal(`<h3 style="margin-top:0">アンケートを編集</h3><p><b>${esc(s.title)}</b></p>
+    <label>役職</label>${roleSelect("er", s.roleId || "")}
+    <label>期</label>${kiSelect("ek", kiOf(s))}
+    <label>回答の単位</label>
+    <select id="eu" ${canUnit ? "" : "disabled"}>
+      <option value="人ごと" ${u === "人ごと" ? "selected" : ""}>人ごと（1人1回答）</option>
+      <option value="班ごと" ${u === "班ごと" ? "selected" : ""}>班ごと（1班1回答）</option></select>
+    <p class="muted">${canUnit ? "回答の単位を変えると、フォームの説明文と「お名前」の注意書きも自動で直ります。" : "回答の単位は、公開したあとは変えられません。対象者と集計がずれるためです。"}</p>
+    <label>リスト外の回答</label>
+    <label class="chk"><input type="checkbox" id="eg" ${s.allowGuest ? "checked" : ""} ${canUnit ? "" : "disabled"}> 名簿にない人も回答できるようにする</label>
+    <p class="muted">${canUnit ? "オンにすると、フォームの名前の選択肢に「リストにない方」が加わり、選んだ人は名前を書いてから質問に進みます。" : "リスト外の受け付けも、公開したあとは変えられません。"}</p>
+    <button class="btn" onclick="doEdit('${id}')">保存する</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
+}
+/** 編集の内容をサーバーに送る */
+async function doEdit(id){
+  const s = find(id);
+  const p = { roleId: document.getElementById("er").value, ki: Number(document.getElementById("ek").value) || kiOf(s) };
+  if(s.status === "公開待ち"){ p.unit = document.getElementById("eu").value; p.allowGuest = document.getElementById("eg").checked; }
+  modal(`<div class="loading">保存中…</div>`);
+  try {
+    const r = await api("apiEditSurvey", id, p);
+    closeModal();
+    toast(r.changed && r.changed.length ? r.changed.join("・") + "を変更しました" : "変更はありませんでした");
+    view = null; load();
+  } catch(e){
+    modal(`<p>保存できませんでした：${esc(errMsg(e))}</p><button class="btn gray" onclick="closeModal()">閉じる</button>`);
+  }
+}
+// ----- CSV出力 -----
+let CSV = null;
+/** 表をCSVの文字にする（Excelで文字化けしないよう、先頭にBOMを付けるのはダウンロードのとき） */
+function toCsv(rows){
+  return rows.map(r => r.map(v => { const t = String(v ?? ""); return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }).join(",")).join("\r\n");
+}
+/** 回答をCSVにして、ダウンロードとコピーのボタンを出す */
+async function csvExport(id){
+  modal(`<h3 style="margin-top:0">CSVを作っています…</h3><div class="loading">少しお待ちください</div>`);
+  try {
+    const r = await api("apiCsv", id);
+    CSV = { filename: r.filename, text: toCsv(r.rows),
+      tsv: r.rows.map(row => row.map(v => String(v ?? "").replace(/[\t\r\n]+/g, " ")).join("\t")).join("\n") };
+    const n = r.rows.length - 1;
+    modal(`<h3 style="margin-top:0">⬇ CSVで出力</h3>
+      <p class="muted">回答した人だけの${n}件です（リスト外の回答も含みます）。ファイル名：${esc(r.filename)}</p>
+      ${n ? `<textarea class="csv-box" readonly>${esc(CSV.text)}</textarea>` : `<div class="empty">まだ回答はありません</div>`}
+      ${n ? `<button class="btn" onclick="csvDownload()">ファイルをダウンロード</button> <button class="btn gray" onclick="csvCopy()">全部コピーする</button> ` : ""}
+      <button class="btn gray" onclick="closeModal()">閉じる</button>
+      ${n ? `<p class="muted" style="margin-top:10px">ダウンロードが始まらないときは「全部コピーする」を押して、スプレッドシートに貼り付けてください。</p>` : ""}`);
+  } catch(e){
+    modal(`<p>CSVを作れませんでした：${esc(errMsg(e))}</p><button class="btn gray" onclick="closeModal()">閉じる</button>`);
+  }
+}
+function csvDownload(){
+  if(!CSV) return;
+  try {
+    const blob = new Blob(["\uFEFF" + CSV.text], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = CSV.filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    toast("ダウンロードを始めました");
+  } catch(e){ toast("ダウンロードできませんでした。「全部コピーする」を使ってください"); }
+}
+function csvCopy(){
+  if(!CSV) return;
+  const done = () => toast("コピーしました");
+  // スプレッドシートにそのまま貼れるよう、タブ区切りでコピーする
+  if(navigator.clipboard) navigator.clipboard.writeText(CSV.tsv).then(done).catch(fallback); else fallback();
+  function fallback(){ const t = document.querySelector(".csv-box"); if(t){ t.select(); document.execCommand("copy"); done(); } }
+}
+load();
+</script>
+</body>
+</html>
