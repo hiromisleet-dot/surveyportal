@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アンケート管理</title>
-<link rel="stylesheet" href="assets/common.css?v=10">
-<script src="assets/config.js?v=10"></script>
-<script src="assets/common.js?v=10"></script>
+<link rel="stylesheet" href="assets/common.css?v=11">
+<script src="assets/config.js?v=11"></script>
+<script src="assets/common.js?v=11"></script>
 <style>
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;align-items:center}
 .tabs button{background:#fff;border:1px solid var(--line);color:#555;border-radius:18px;padding:8px 16px;font-size:14px;cursor:pointer;font-family:inherit}
@@ -94,7 +94,8 @@ let view = null;
 let showClosed = false;
 const CREATE_KEY = "surveyCreateOpen";
 let showCreate = store.get(CREATE_KEY) === true; // 「新しいアンケートを作る」を開いているか（最初は閉じておく）
-const L0 = () => ({ kw: "", rt: "", dl: "", open: { sort: "deadline", dir: "asc" }, closed: { sort: "created", dir: "desc" } });
+// 一覧ごとの検索・絞り込み・並び替え（受付中・公開待ち＝open、締め切り済み＝closed）
+const L0 = () => ({ open: { kw: "", rt: "", dl: "", sort: "deadline", dir: "asc" }, closed: { kw: "", rt: "", dl: "", sort: "created", dir: "desc" } });
 let L = L0();
 const SORT_LABEL = { created: "作成日", deadline: "締め切り", title: "アンケート名", rate: "回答状況" };
 const rate = s => s.total ? Math.round(s.answered / s.total * 100) : 0;
@@ -279,23 +280,19 @@ function renderList(){
       </div>
     </div>
     <div class="panel"><h2>📝 受付中・公開待ちのアンケート（${kiName}・${list.filter(s => !isClosed(s)).length}件）</h2>
-      <div class="tool">
-        <input placeholder="🔍 アンケート名で検索" value="${esc(L.kw)}" oninput="L.kw=this.value;updateList();updateTool()">
-        <button id="filtBtn" class="btn gray sm filtbtn${showFilt ? " on" : ""}" onclick="showFilt=!showFilt;updateTool()">${filtBtnLabel()}</button>
-      </div>
-      <div id="filtBox">${filtBoxHtml()}</div>
+${toolHtml("open")}
       <div id="list_open">${listHtml("open")}</div></div>
     <div class="panel past"><details ${showClosed ? "open" : ""} ontoggle="showClosed=this.open"><summary>🔒 締め切り済みのアンケート（${kiName}・${closedN}件）</summary>
-      <div class="in"><div id="list_closed">${listHtml("closed")}</div></div></details></div>
+      <div class="in">${toolHtml("closed")}<div id="list_closed">${listHtml("closed")}</div></div></details></div>
     <button class="outline" onclick="reloadMaster()">👥 メンバー・班・役職をNotionから読み直す</button>
     <p class="muted" style="text-align:center">入会・退会や班替え、役職の追加をしたあとに押すと、すぐ画面に反映されます（ふだんは1日1回、自動で読み直します）。</p>`;
 }
 function listRows(kind){
   let rows = shown().filter(s => kind === "open" ? !isClosed(s) : isClosed(s));
-  const kw = L.kw.trim();
+  const f = L[kind], kw = f.kw.trim();
   if(kw) rows = rows.filter(s => s.title.includes(kw));
-  if(L.rt) rows = rows.filter(s => { const r = rate(s); return L.rt === "lo" ? r < 50 : L.rt === "mid" ? (r >= 50 && r < 80) : r >= 80; });
-  if(kind === "open" && L.dl) rows = rows.filter(s => { const n = daysLeft(s.deadline); return n >= 0 && n <= Number(L.dl); });
+  if(f.rt) rows = rows.filter(s => { const r = rate(s); return f.rt === "lo" ? r < 50 : f.rt === "mid" ? (r >= 50 && r < 80) : r >= 80; });
+  if(kind === "open" && f.dl) rows = rows.filter(s => { const n = daysLeft(s.deadline); return n >= 0 && n <= Number(f.dl); });
   const by = {
     created: (a, b) => createdOf(a).localeCompare(createdOf(b)) || a.title.localeCompare(b.title, "ja", { numeric: true }),
     deadline: (a, b) => String(a.deadline).localeCompare(String(b.deadline)) || a.title.localeCompare(b.title, "ja", { numeric: true }),
@@ -376,10 +373,7 @@ function rowHtml(s){
 function listHtml(kind){
   const rows = listRows(kind), st = L[kind], all = shown().filter(s => kind === "open" ? !isClosed(s) : isClosed(s)).length;
   const o = (v, t, cur) => `<option value="${v}" ${cur === v ? "selected" : ""}>${t}</option>`;
-  let h = kind === "open" ? `<p class="hit">該当 <b>${rows.length}</b> / ${all}件</p>` : `<div class="sorts"><span class="muted">並び順</span>
-      <select onchange="L.${kind}.sort=this.value;updateList()">${Object.keys(SORT_LABEL).map(k => o(k, SORT_LABEL[k], st.sort)).join("")}</select>
-      <button class="btn gray sm" onclick="L.${kind}.dir=L.${kind}.dir==='asc'?'desc':'asc';updateList()">${st.dir === "asc" ? "▲ 昇順" : "▼ 降順"}</button>
-    </div><p class="hit">該当 <b>${rows.length}</b> / ${all}件</p>`;
+  let h = `<p class="hit">該当 <b>${rows.length}</b> / ${all}件</p>`;
   if(!all) return `<div class="empty">${kind === "open" ? "受付中のアンケートはありません" : "締め切り済みのアンケートはまだありません"}</div>`;
   if(!rows.length) return h + `<div class="empty">条件に合うアンケートはありません</div>`;
   if(st.sort === "created"){
@@ -389,34 +383,42 @@ function listHtml(kind){
   }
   return h + `<div class="list">` + rows.map(rowHtml).join("") + `</div>`;
 }
-// ----- 絞り込み・並び替え（受付中・公開待ちの一覧） -----
-let showFilt = false;
+// ----- 検索・絞り込み・並び替え（一覧ごと。kind は "open" か "closed"） -----
+const showFilt = { open: false, closed: false };
+/** 検索ボックスと「絞り込み・並び替え」ボタン、開いたときの欄 */
+function toolHtml(kind){
+  return `<div class="tool">
+        <input placeholder="🔍 アンケート名で検索" value="${esc(L[kind].kw)}" oninput="L.${kind}.kw=this.value;updateList();updateTool('${kind}')">
+        <button id="filtBtn_${kind}" class="btn gray sm filtbtn${showFilt[kind] ? " on" : ""}" onclick="showFilt.${kind}=!showFilt.${kind};updateTool('${kind}')">${filtBtnLabel(kind)}</button>
+      </div>
+      <div id="filtBox_${kind}">${filtBoxHtml(kind)}</div>`;
+}
 /** 初期値から変えている条件の数（回答状況・締め切りまで・並び順） */
-function filtCount(){
-  const d = L0().open;
-  return (L.rt ? 1 : 0) + (L.dl ? 1 : 0) + (L.open.sort !== d.sort || L.open.dir !== d.dir ? 1 : 0);
+function filtCount(kind){
+  const f = L[kind], d = L0()[kind];
+  return (f.rt ? 1 : 0) + (f.dl ? 1 : 0) + (f.sort !== d.sort || f.dir !== d.dir ? 1 : 0);
 }
-function filtBtnLabel(){
-  const n = filtCount();
-  return `⚙ 絞り込み<span class="wide">・並び替え</span>${n ? `<span class="fc">${n}</span>` : ""} ${showFilt ? "▴" : "▾"}`;
+function filtBtnLabel(kind){
+  const n = filtCount(kind);
+  return `⚙ 絞り込み<span class="wide">・並び替え</span>${n ? `<span class="fc">${n}</span>` : ""} ${showFilt[kind] ? "▴" : "▾"}`;
 }
-function filtBoxHtml(){
-  if(!showFilt) return "";
+function filtBoxHtml(kind){
+  if(!showFilt[kind]) return "";
   const o = (v, t, cur) => `<option value="${v}" ${cur === v ? "selected" : ""}>${t}</option>`;
-  const st = L.open;
+  const f = L[kind], ch = `updateList();updateTool('${kind}')`;
   return `<div class="filtbox">
-    <label>回答状況<select onchange="L.rt=this.value;updateList();updateTool()">${o("", "すべて", L.rt)}${o("lo", "50%未満", L.rt)}${o("mid", "50〜79%", L.rt)}${o("hi", "80%以上", L.rt)}</select></label>
-    <label>締め切りまで<select onchange="L.dl=this.value;updateList();updateTool()">${o("", "すべて", L.dl)}${o("7", "7日以内", L.dl)}${o("30", "30日以内", L.dl)}</select></label>
-    <label>並び順<select onchange="L.open.sort=this.value;updateList();updateTool()">${Object.keys(SORT_LABEL).map(k => o(k, SORT_LABEL[k], st.sort)).join("")}</select></label>
-    <button class="btn gray sm" onclick="L.open.dir=L.open.dir==='asc'?'desc':'asc';updateList();updateTool()">${st.dir === "asc" ? "▲ 昇順" : "▼ 降順"}</button>
-    ${filtCount() || L.kw ? `<a href="#" class="clr" onclick="L=L0();render();return false;">× 条件をクリア</a>` : ""}
+    <label>回答状況<select onchange="L.${kind}.rt=this.value;${ch}">${o("", "すべて", f.rt)}${o("lo", "50%未満", f.rt)}${o("mid", "50〜79%", f.rt)}${o("hi", "80%以上", f.rt)}</select></label>
+    ${kind === "open" ? `<label>締め切りまで<select onchange="L.open.dl=this.value;${ch}">${o("", "すべて", f.dl)}${o("7", "7日以内", f.dl)}${o("30", "30日以内", f.dl)}</select></label>` : ""}
+    <label>並び順<select onchange="L.${kind}.sort=this.value;${ch}">${Object.keys(SORT_LABEL).map(k => o(k, SORT_LABEL[k], f.sort)).join("")}</select></label>
+    <button class="btn gray sm" onclick="L.${kind}.dir=L.${kind}.dir==='asc'?'desc':'asc';${ch}">${f.dir === "asc" ? "▲ 昇順" : "▼ 降順"}</button>
+    ${filtCount(kind) || f.kw ? `<a href="#" class="clr" onclick="L.${kind}=L0().${kind};render();return false;">× 条件をクリア</a>` : ""}
   </div>`;
 }
 /** ボタンの表示と、開いた欄だけを書き直す（検索欄は書き直さないので、入力中でも途切れない） */
-function updateTool(){
-  const btn = document.getElementById("filtBtn"), box = document.getElementById("filtBox");
-  if(btn){ btn.innerHTML = filtBtnLabel(); btn.classList.toggle("on", showFilt); }
-  if(box) box.innerHTML = filtBoxHtml();
+function updateTool(kind){
+  const btn = document.getElementById("filtBtn_" + kind), box = document.getElementById("filtBox_" + kind);
+  if(btn){ btn.innerHTML = filtBtnLabel(kind); btn.classList.toggle("on", showFilt[kind]); }
+  if(box) box.innerHTML = filtBoxHtml(kind);
 }
 function updateList(){
   document.getElementById("list_open").innerHTML = listHtml("open");
