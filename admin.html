@@ -7,9 +7,9 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon-admin.svg">
 <link rel="icon" type="image/png" href="assets/favicon-admin.png">
 <link rel="apple-touch-icon" href="assets/favicon-admin.png">
-<link rel="stylesheet" href="assets/common.css?v=14">
-<script src="assets/config.js?v=14"></script>
-<script src="assets/common.js?v=14"></script>
+<link rel="stylesheet" href="assets/common.css?v=15">
+<script src="assets/config.js?v=15"></script>
+<script src="assets/common.js?v=15"></script>
 <style>
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;align-items:center}
 .tabs button{background:#fff;border:1px solid var(--line);color:#555;border-radius:18px;padding:8px 16px;font-size:14px;cursor:pointer;font-family:inherit}
@@ -21,6 +21,7 @@
 .kibar{flex-wrap:wrap}
 .kibar .rolelb{margin:0 0 0 16px}
 .kibar .rolesel{max-width:100%}
+.pubclr{font-size:12px;margin-left:8px}
 @media(max-width:600px){.kibar .rolelb{margin-left:0}}
 #createBtn:disabled{background:#bbb;border-color:#bbb;color:#fff;cursor:not-allowed;opacity:1}
 .req{font-size:11px;color:var(--red);margin-left:2px}
@@ -193,8 +194,23 @@ function checkReady(){
   const miss = missingItems();
   const names = { ttl: "タイトル", dl: "締め切り", unit: "回答の単位", role: "役職", author: "作成者" };
   Object.keys(names).forEach(k => { const el = document.getElementById(k); if(el) el.classList.toggle("blank", miss.includes(names[k])); });
+  const pub = document.getElementById("pub");
+  if(pub) pub.classList.toggle("blank", !pub.value); // 公開日時は任意だが、空のときはほかの欄と同じく薄い黄色にする
   btn.disabled = miss.length > 0;
   if(msg){ msg.style.display = miss.length ? "" : "none"; msg.textContent = "必要事項をすべて入力してください（未入力：" + miss.join("・") + "）"; }
+}
+/** 公開日時の欄を開いたとき、空なら今の日時を入れておく（そこから選び直せる） */
+function fillPubNow(){
+  const el = document.getElementById("pub");
+  if(!el || el.value) return;
+  const d = new Date(), p = n => String(n).padStart(2, "0");
+  el.value = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  checkReady();
+}
+/** 公開日時を空に戻す（空ならすぐ公開） */
+function clearPub(){
+  const el = document.getElementById("pub");
+  if(el){ el.value = ""; checkReady(); }
 }
 function roleSelect(id, selected, onchg){
   return `<select id="${id}"${onchg ? ` onchange="${onchg}"` : ""}><option value="">（役職を選ばない）</option>` +
@@ -245,12 +261,11 @@ function renderList(){
       <div class="form-grid">
         <div><label>タイトル <span class="req">必須</span></label><input id="ttl" placeholder="例：11月 定例会の満足度アンケート" oninput="checkReady()"></div>
         <div><label>締め切り <span class="req">必須</span></label><input id="dl" type="date" min="${todayStr()}" onchange="checkReady()" oninput="checkReady()"></div>
-        <div><label>公開日時（空ならすぐ公開）</label><input id="pub" type="datetime-local"></div>
+        <div><label>公開日時（空ならすぐ公開）<a href="#" class="pubclr" onclick="clearPub();return false;">空にする</a></label><input id="pub" type="datetime-local" onfocus="fillPubNow()" onclick="fillPubNow()" onchange="checkReady()" oninput="checkReady()"></div>
       </div>
       <div class="form-grid">
         <div><label>役職（どの役職が出すアンケートか）${ROLES.length ? ' <span class="req">必須</span>' : ""}</label>${roleSelect("role", tab !== "all" && tab !== "none" ? tab : "", "checkReady()")}</div>
         <div><label>回答の単位 <span class="req">必須</span></label><select id="unit" onchange="checkReady()"><option value="">…</option><option value="人ごと">人ごと（1人1回答）</option><option value="班ごと">班ごと（1班1回答）</option></select></div>
-        <div><label>期</label>${kiSelect("kiSel", CUR_KI)}</div>
       </div>
       <div class="form-grid">
         <div><label>作成者 <span class="req">必須</span></label><input id="author" placeholder="お名前" value="${esc(localStorage.getItem(AUTHOR_KEY) || "")}" oninput="checkReady()"></div>
@@ -259,7 +274,10 @@ function renderList(){
         <div><label>リスト外の回答</label><label class="chk"><input type="checkbox" id="guest"> 名簿にない人も回答できるようにする</label></div>
       </div>
       <div class="form-grid">
-        <div><label>回答の公開</label><label class="chk"><input type="checkbox" id="secret"> ${ic("lock")}回答を非公開にする（管理者だけが見られる）</label></div>
+        <div><label>回答の表示</label><label class="chk"><input type="checkbox" id="secret"> ${ic("lock")}回答を非表示にする（管理者だけが見られる）</label></div>
+      </div>
+      <div class="form-grid">
+        <div><label>期</label>${kiSelect("kiSel", CUR_KI)}</div>
       </div>
       <p id="needMsg" class="need">必要事項をすべて入力してください</p>
       <button class="btn" id="createBtn" onclick="createSurvey()" disabled>作成する</button>
@@ -318,7 +336,7 @@ function actMenuItems(s){
   if((s.status === "受付中" || s.status === "公開待ち") && s.formUrl) items.push(it("formLinkModal", ic("link") + "フォームのURLをコピー"));
   if(s.status === "締め切り") items.push(it("reopen", ic("undo") + "受付を再開"));
   items.push(it("editSurvey", ic("pencil") + "編集"));
-  items.push(it("toggleSecret", s.secret ? ic("unlock") + "回答を公開に戻す" : ic("lock") + "回答を非公開にする"));
+  items.push(it("toggleSecret", s.secret ? ic("unlock") + "回答を表示に戻す" : ic("lock") + "回答を非表示にする"));
   if(s.status !== "締め切り" && s.editUrl) items.push(it("editQuestions", ic("file") + "質問を編集"));
   items.push(it("duplicate", ic("copy") + "複製"));
   items.push("hr");
@@ -356,7 +374,7 @@ function rowHtml(s){
   const kiTag = kiView === "all" || kiOf(s) !== CUR_KI ? `<span class="ki">${kiOf(s)}期</span>` : "";
   return `<div class="li c ${isClosed(s) ? "closed" : ""}">
       <div class="tg">${tagHtml(s)}</div>
-      <div class="t">${esc(s.title)}<small>${kiTag}${tab === "all" && roleName(s.roleId) ? `<span class="role">${esc(roleName(s.roleId))}</span>` : ""}<span class="unit">${s.unit === "班ごと" ? "班ごと" : "人ごと"}</span>${s.allowGuest ? '<span class="guest">リスト外も受付</span>' : ""}${s.secret ? `<span class="secret">${ic("lock")}回答非公開</span>` : ""}${s.status === "公開待ち" && s.publishAt ? `<span class="meta">公開 ${fmt(s.publishAt)}</span>` : ""}${s.author ? `<span class="meta">作成 ${esc(s.author)}</span>` : ""}</small></div>
+      <div class="t">${esc(s.title)}<small>${kiTag}${tab === "all" && roleName(s.roleId) ? `<span class="role">${esc(roleName(s.roleId))}</span>` : ""}<span class="unit">${s.unit === "班ごと" ? "班ごと" : "人ごと"}</span>${s.allowGuest ? '<span class="guest">リスト外も受付</span>' : ""}${s.secret ? `<span class="secret">${ic("lock")}回答非表示</span>` : ""}${s.status === "公開待ち" && s.publishAt ? `<span class="meta">公開 ${fmt(s.publishAt)}</span>` : ""}${s.author ? `<span class="meta">作成 ${esc(s.author)}</span>` : ""}</small></div>
       <div class="prog">${s.status === "公開待ち" || s.status === "生成中" ? '<span class="muted">公開前</span>' : `<span class="bar"><span style="width:${rate(s)}%"></span></span><b>${rate(s)}%</b><small>${s.answered} / ${s.total}${s.unit === "班ごと" ? "班" : "名"}${s.guest ? `＋リスト外${s.guest}` : ""}</small>`}</div>
       <div class="dl">${fmtDl(s.deadline)}${s.status === "受付中" ? leftHtml(s.deadline) : ""}</div>
       <div class="acts">${actsHtml(s)}</div></div>`;
@@ -665,8 +683,8 @@ function editSurvey(id){
     <label>リスト外の回答</label>
     <label class="chk"><input type="checkbox" id="eg" ${s.allowGuest ? "checked" : ""} ${canUnit ? "" : "disabled"}> 名簿にない人も回答できるようにする</label>
     <p class="muted">${canUnit ? "オンにすると、フォームの名前の選択肢に「リストにない方」が加わり、選んだ人は名前を書いてから質問に進みます。" : "リスト外の受け付けも、公開したあとは変えられません。"}</p>
-    <label>回答の公開</label>
-    <label class="chk"><input type="checkbox" id="es" ${s.secret ? "checked" : ""}> ${ic("lock")}回答を非公開にする（管理者だけが見られる）</label>
+    <label>回答の表示</label>
+    <label class="chk"><input type="checkbox" id="es" ${s.secret ? "checked" : ""}> ${ic("lock")}回答を非表示にする（管理者だけが見られる）</label>
     <p class="muted">オンにすると、回答する人の画面で「回答を見る」「修正する」が出なくなり、自分の答えも他の人の答えも見られなくなります。直したい人は「答え直す」で最初から送り直します。いつでも切り替えられます。</p>
     <button class="btn" onclick="doEdit('${id}')">保存する</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
 }
@@ -674,18 +692,18 @@ function editSurvey(id){
 function toggleSecret(id){
   const s = find(id);
   const toSecret = !s.secret;
-  modal(`<h3 style="margin-top:0">${toSecret ? ic("lock") + "回答を非公開にする" : ic("unlock") + "回答を公開に戻す"}</h3><p><b>${esc(s.title)}</b></p>
+  modal(`<h3 style="margin-top:0">${toSecret ? ic("lock") + "回答を非表示にする" : ic("unlock") + "回答を表示に戻す"}</h3><p><b>${esc(s.title)}</b></p>
     <p>${toSecret
       ? "回答する人の画面で「回答を見る」「修正する」が出なくなり、答えは管理者だけが見られるようになります。直したい人は「答え直す」で最初から送り直します。"
       : "回答する人の画面で、自分（班ごとなら自分の班）の答えを「回答を見る」で見られるようになり、「修正する」で直せるようになります。"}</p>
-    <button class="btn" onclick="doToggleSecret('${id}', ${toSecret})">${toSecret ? "非公開にする" : "公開に戻す"}</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
+    <button class="btn" onclick="doToggleSecret('${id}', ${toSecret})">${toSecret ? "非表示にする" : "表示に戻す"}</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
 }
 async function doToggleSecret(id, toSecret){
   modal(`<div class="loading">切り替え中…</div>`);
   try {
     await api("apiEditSurvey", id, { secret: toSecret });
     closeModal();
-    toast(toSecret ? "回答を非公開にしました" : "回答を公開に戻しました");
+    toast(toSecret ? "回答を非表示にしました" : "回答を表示に戻しました");
     view = null; load();
   } catch(e){
     modal(`<p>切り替えられませんでした：${esc(errMsg(e))}</p><button class="btn gray" onclick="closeModal()">閉じる</button>`);

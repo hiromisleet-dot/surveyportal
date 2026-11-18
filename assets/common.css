@@ -34,6 +34,10 @@ main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
 label{font-size:13px;color:#555}
 select,input,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radius:4px;font-size:15px;margin:6px 0 12px;background:#fff;font-family:inherit}
 .form-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}
+.form-grid > div{min-width:0}
+/* 日付の欄：スマホ（iPhoneなど）で右側がはみ出さないようにする */
+input[type=date],input[type=datetime-local]{display:block;min-width:0;max-width:100%;-webkit-appearance:none;appearance:none;min-height:43px;text-align:left}
+input[type=date]::-webkit-date-and-time-value,input[type=datetime-local]::-webkit-date-and-time-value{text-align:left}
 .form-grid2{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
 @media(max-width:600px){.form-grid,.form-grid2{grid-template-columns:1fr}}
 .bar{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin-top:10px}
