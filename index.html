@@ -7,9 +7,9 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/favicon.png">
-<link rel="stylesheet" href="assets/common.css?v=12">
-<script src="assets/config.js?v=12"></script>
-<script src="assets/common.js?v=12"></script>
+<link rel="stylesheet" href="assets/common.css?v=13">
+<script src="assets/config.js?v=13"></script>
+<script src="assets/common.js?v=13"></script>
 <style>
 .role{display:inline-block;font-size:11px;color:#7048b6;border:1px solid #7048b6;border-radius:8px;padding:0 6px;margin-right:4px;line-height:1.6}
 .secret-note{display:block;font-size:12px;color:#c53030;margin-top:2px}
@@ -18,9 +18,9 @@
 </head>
 <body>
 <header>
-  <div class="logo">📋 Survey Portal</div>
+  <div class="logo"><svg viewBox="11 5 42 52" aria-hidden="true"><rect x="15" y="12" width="34" height="42" rx="5" fill="#fff"/><rect x="24" y="8" width="16" height="9" rx="3" fill="#fff" stroke="#cf2030" stroke-width="3"/><path d="M22 34 l7 7 l13 -14" fill="none" stroke="#cf2030" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>Survey Portal</div>
   <div class="center">アンケート回答状況</div>
-  <button class="btn gray sm" onclick="load()">↻ 最新にする</button>
+  <button class="btn gray sm" onclick="load()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>最新にする</button>
 </header>
 <main id="app"><div class="loading">読み込み中…</div></main>
 <div id="layer"></div>
@@ -113,7 +113,7 @@ function sub(s){
     text = s.state === "回答済み" ? `${esc(s.han)}班として回答済み（${esc(s.answeredBy)}さんが回答）`
       : `${esc(s.han)}班として回答します（班の誰か1人が答えればOK）`;
   }
-  const lock = s.secret && !missed ? '<span class="secret-note">🔒 回答は管理者だけが見られます</span>' : "";
+  const lock = s.secret && !missed ? `<span class="secret-note">${ic("lock")}回答は管理者だけが見られます</span>` : "";
   return (s.roleName || text || lock) ? `<small>${roleTag(s)}${text}${lock}</small>` : "";
 }
 function render(){
@@ -133,16 +133,16 @@ function render(){
 
   let h = `<div class="hello">こんにちは ${esc(first)}さん
     <small>あなたではない場合は <a href="#" onclick="changeMe();return false;">名前を選び直す</a>${updating ? '　<span class="muted">最新の情報を確認中…</span>' : ""}</small></div>
-    <div class="panel"><h2>📝 まだ答えていないアンケート（${todo.length}件）</h2>`;
+    <div class="panel"><h2>${ic("pencil")}まだ答えていないアンケート（${todo.length}件）</h2>`;
   h += todo.length ? `<p class="sec-note">締め切りが近い順に並んでいます</p><div class="list">` + todo.map(s => `<div class="li r1">
       <div class="t">${esc(s.title)}${sub(s)}</div>
       <div class="dl">締め切り ${fmtDl(s.deadline)}${leftHtml(s.deadline)}</div>
       <div class="acts"><button class="mini" onclick="answer('${s.id}')">回答する</button></div></div>`).join("") + `</div>`
-    : `<div class="empty">🎉 すべて回答済みです。ありがとうございます！</div>`;
+    : `<div class="empty">すべて回答済みです。ありがとうございます！</div>`;
   h += `</div>`;
-  if(doneOpen.length) h += `<div class="panel done"><h2>✏️ 回答済み・締め切り前（${doneOpen.length}件）</h2>
+  if(doneOpen.length) h += `<div class="panel done"><h2>${ic("check")}回答済み・締め切り前（${doneOpen.length}件）</h2>
       <p class="sec-note">新しく回答した順に並んでいます。締め切りまでは回答を修正・答え直しできます</p><div class="list">${doneOpen.map(s => row(s, true)).join("")}</div></div>`;
-  if(past.length) h += `<div class="panel past"><details ${showPast ? "open" : ""} ontoggle="showPast=this.open"><summary><span>🔒 締め切り済み（${past.length}件${pastMiss ? `・<span class="past-miss">うち未回答 ${pastMiss}件</span>` : ""}）</span></summary>
+  if(past.length) h += `<div class="panel past"><details ${showPast ? "open" : ""} ontoggle="showPast=this.open"><summary><span>${ic("lock")}締め切り済み（${past.length}件${pastMiss ? `・<span class="past-miss">うち未回答 ${pastMiss}件</span>` : ""}）</span></summary>
       <div class="in">${toolHtml()}<div id="pastList">${pastListHtml()}</div></div></details></div>`;
   h += `<p class="muted" style="text-align:center">回答を送ったあと、この画面に戻ると「回答済み」に変わります（反映まで1分ほどかかることがあります）</p>`;
   document.getElementById("app").innerHTML = h;
@@ -192,19 +192,19 @@ function pastListHtml(){
 }
 function toolHtml(){
   return `<div class="tool">
-      <input placeholder="🔍 アンケート名で検索" value="${esc(P.kw)}" oninput="P.kw=this.value;updatePast()">
+      <div class="search">${ic("search")}<input placeholder="アンケート名で検索" value="${esc(P.kw)}" oninput="P.kw=this.value;updatePast()"></div>
       <button id="filtBtn" class="btn gray sm filtbtn${showFilt ? " on" : ""}" onclick="showFilt=!showFilt;updatePast()">${filtBtnLabel()}</button>
     </div><div id="filtBox">${filtBoxHtml()}</div>`;
 }
 function filtCount(){ const d = P0(); return (P.st ? 1 : 0) + (P.sort !== d.sort || P.dir !== d.dir ? 1 : 0); }
-function filtBtnLabel(){ const n = filtCount(); return `⚙ 絞り込み<span class="wide">・並び替え</span>${n ? `<span class="fc">${n}</span>` : ""} ${showFilt ? "▴" : "▾"}`; }
+function filtBtnLabel(){ const n = filtCount(); return `${ic("sliders")}絞り込み<span class="wide">・並び替え</span>${n ? `<span class="fc">${n}</span>` : ""}${showFilt ? ic("up") : ic("down")}`; }
 function filtBoxHtml(){
   if(!showFilt) return "";
   const o = (v, t, cur) => `<option value="${v}" ${cur === v ? "selected" : ""}>${t}</option>`;
   return `<div class="filtbox">
     <label>回答状況<select onchange="P.st=this.value;updatePast()">${o("", "すべて", P.st)}${o("未回答", "未回答だけ", P.st)}${o("回答済み", "回答済みだけ", P.st)}</select></label>
     <label>並び順<select onchange="P.sort=this.value;updatePast()">${Object.keys(PAST_SORT).map(k => o(k, PAST_SORT[k], P.sort)).join("")}</select></label>
-    ${P.sort !== "state" ? `<button class="btn gray sm" onclick="P.dir=P.dir==='asc'?'desc':'asc';updatePast()">${P.dir === "asc" ? "▲ 昇順" : "▼ 降順"}</button>` : ""}
+    ${P.sort !== "state" ? `<button class="btn gray sm" onclick="P.dir=P.dir==='asc'?'desc':'asc';updatePast()">${P.dir === "asc" ? ic("arrowUp") + "昇順" : ic("arrowDown") + "降順"}</button>` : ""}
     ${filtCount() || P.kw ? `<a href="#" class="clr" onclick="P=P0();render();return false;">× 条件をクリア</a>` : ""}
   </div>`;
 }
@@ -226,7 +226,7 @@ function openFormWin(url, title, mode){
   formWin = window.open(url, "surveyAnswer", `popup=yes,width=${w},height=${h},left=${left},top=${top}`);
   if(!formWin){ window.open(url, "_blank"); return; }
   formWin.focus();
-  modal(`<h3 style="margin-top:0">✏️ ${mode === "edit" ? "回答を修正中" : "回答中"}</h3>
+  modal(`<h3 style="margin-top:0">${ic("pencil")}${mode === "edit" ? "回答を修正中" : "回答中"}</h3>
     <p><b>${esc(title)}</b></p>
     <p>開いたウィンドウでフォームに答えて、<b>「送信」を押してください</b>。送信したら、ウィンドウを閉じるか、下のボタンを押すとこの画面に戻ります。</p>
     <button class="btn gray" onclick="formWin && formWin.focus()">フォームを前に出す</button>
@@ -238,7 +238,7 @@ function finishForm(){
   clearInterval(formTimer); formTimer = null;
   try { if(formWin && !formWin.closed) formWin.close(); } catch(e){}
   formWin = null;
-  modal(`<h3 style="margin-top:0">✅ おつかれさまでした</h3>
+  modal(`<h3 style="margin-top:0">${ic("check")}おつかれさまでした</h3>
     <p>送信した回答は、1分ほどで「回答済み」に変わります。</p>
     <button class="btn" onclick="closeModal()">一覧に戻る</button>`);
   load();

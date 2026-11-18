@@ -154,3 +154,20 @@ a{color:var(--red)}
 .li.miss{background:#fff5f5;box-shadow:inset 4px 0 0 var(--red)}
 .li.miss .pr{color:var(--red);font-weight:bold}
 .past-miss{color:var(--red);font-weight:bold}
+
+/* 線のアイコン */
+.ic{width:1.1em;height:1.1em;vertical-align:-.2em;flex:none}
+h2 .ic,h3 .ic{margin-right:.35em}
+summary .ic{margin-right:0}
+summary > span > .ic:first-child{margin-right:.35em}
+.secret .ic,.secret-note .ic{margin-right:.2em}
+.btn .ic,.mini .ic,.outline .ic,.actmenu .ic{margin-right:.3em}
+.actmenu .ic{color:#888}
+.actmenu button.danger .ic{color:var(--red)}
+.ic.after{margin:0 0 0 .25em}
+header .logo{display:flex;align-items:center;gap:10px}
+header .logo svg{width:30px;height:30px;flex:none}
+.search{position:relative;flex:1;min-width:0}
+.search .ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#999;pointer-events:none}
+.search input{width:100%;padding-left:36px;margin:0}
+.tile .lb .ic{color:var(--red);margin-right:.35em}

@@ -7,9 +7,9 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon-admin.svg">
 <link rel="icon" type="image/png" href="assets/favicon-admin.png">
 <link rel="apple-touch-icon" href="assets/favicon-admin.png">
-<link rel="stylesheet" href="assets/common.css?v=12">
-<script src="assets/config.js?v=12"></script>
-<script src="assets/common.js?v=12"></script>
+<link rel="stylesheet" href="assets/common.css?v=13">
+<script src="assets/config.js?v=13"></script>
+<script src="assets/common.js?v=13"></script>
 <style>
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;align-items:center}
 .tabs button{background:#fff;border:1px solid var(--line);color:#555;border-radius:18px;padding:8px 16px;font-size:14px;cursor:pointer;font-family:inherit}
@@ -47,9 +47,9 @@
 </head>
 <body>
 <header>
-  <div class="logo">📋 Survey Portal</div>
+  <div class="logo"><svg viewBox="11 5 42 52" aria-hidden="true"><rect x="15" y="12" width="34" height="42" rx="5" fill="#fff"/><rect x="24" y="8" width="16" height="9" rx="3" fill="#fff" stroke="#cf2030" stroke-width="3"/><rect x="21" y="36" width="6" height="11" rx="1.5" fill="#cf2030"/><rect x="29" y="29" width="6" height="18" rx="1.5" fill="#cf2030"/><rect x="37" y="23" width="6" height="24" rx="1.5" fill="#cf2030"/></svg>Survey Portal</div>
   <div class="center">アンケート管理</div>
-  <button class="btn gray sm" onclick="view=null;load()">↻ 最新にする</button>
+  <button class="btn gray sm" onclick="view=null;load()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>最新にする</button>
 </header>
 <main id="app"><div class="loading">読み込み中…</div></main>
 <div id="layer"></div>
@@ -241,7 +241,7 @@ function renderList(){
   const kiName = kiView === "all" ? "すべての期" : kiView + "期";
   document.getElementById("app").innerHTML = `<div class="hello">アンケート管理<small>対象者は公開した時点で「在籍中」のメンバーに固定されます。${updating ? '　<span class="muted">最新の情報を確認中…</span>' : ""}</small></div>
     ${kiBarHtml()}
-    <div class="panel fold"><details ${showCreate ? "open" : ""} ontoggle="showCreate=this.open;store.set(CREATE_KEY,this.open)"><summary>➕ 新しいアンケートを作る</summary><div class="in">
+    <div class="panel fold"><details ${showCreate ? "open" : ""} ontoggle="showCreate=this.open;store.set(CREATE_KEY,this.open)"><summary>${ic("plus")}新しいアンケートを作る</summary><div class="in">
       <div class="form-grid">
         <div><label>タイトル <span class="req">必須</span></label><input id="ttl" placeholder="例：11月 定例会の満足度アンケート" oninput="checkReady()"></div>
         <div><label>締め切り <span class="req">必須</span></label><input id="dl" type="date" min="${todayStr()}" onchange="checkReady()" oninput="checkReady()"></div>
@@ -259,23 +259,23 @@ function renderList(){
         <div><label>リスト外の回答</label><label class="chk"><input type="checkbox" id="guest"> 名簿にない人も回答できるようにする</label></div>
       </div>
       <div class="form-grid">
-        <div><label>回答の公開</label><label class="chk"><input type="checkbox" id="secret"> 🔒 回答を非公開にする（管理者だけが見られる）</label></div>
+        <div><label>回答の公開</label><label class="chk"><input type="checkbox" id="secret"> ${ic("lock")}回答を非公開にする（管理者だけが見られる）</label></div>
       </div>
       <p id="needMsg" class="need">必要事項をすべて入力してください</p>
       <button class="btn" id="createBtn" onclick="createSurvey()" disabled>作成する</button>
       <p class="muted">作成すると、名前のプルダウン入りのGoogleフォームができます。完了の画面に出るリンクから、聞きたい質問を足してください。公開日時を入れた場合は、その時刻まで「公開待ち」になります（最大15分遅れます）。期は今期が最初から入っています。次の期のアンケートを先に作るときは切り替えてください。</p></div></details></div>
     <div class="panel"><h2>${tabName}回答状況</h2>
       <div class="dash" style="margin-bottom:0">
-        <div class="tile"><div class="lb">📝 受付中のアンケート</div><div class="num">${curOpen.length}<small>件</small></div><div class="sub">今期（${CUR_KI}期）の締め切り済み ${curClosedN}件</div></div>
-        <div class="tile"><div class="lb">⏳ まだ全員が回答していないアンケート</div><div class="num">${notAll}<small>件</small></div><div class="sub">受付中 ${curOpen.length}件のうち</div></div>
+        <div class="tile"><div class="lb">${ic("inbox")}受付中のアンケート</div><div class="num">${curOpen.length}<small>件</small></div><div class="sub">今期（${CUR_KI}期）の締め切り済み ${curClosedN}件</div></div>
+        <div class="tile"><div class="lb">${ic("clock")}まだ全員が回答していないアンケート</div><div class="num">${notAll}<small>件</small></div><div class="sub">受付中 ${curOpen.length}件のうち</div></div>
       </div>
     </div>
-    <div class="panel"><h2>📝 受付中・公開待ちのアンケート（${kiName}・${list.filter(s => !isClosed(s)).length}件）</h2>
+    <div class="panel"><h2>${ic("inbox")}受付中・公開待ちのアンケート（${kiName}・${list.filter(s => !isClosed(s)).length}件）</h2>
 ${toolHtml("open")}
       <div id="list_open">${listHtml("open")}</div></div>
-    <div class="panel past"><details ${showClosed ? "open" : ""} ontoggle="showClosed=this.open"><summary>🔒 締め切り済みのアンケート（${kiName}・${closedN}件）</summary>
+    <div class="panel past"><details ${showClosed ? "open" : ""} ontoggle="showClosed=this.open"><summary>${ic("lock")}締め切り済みのアンケート（${kiName}・${closedN}件）</summary>
       <div class="in">${toolHtml("closed")}<div id="list_closed">${listHtml("closed")}</div></div></details></div>
-    <button class="outline" onclick="reloadMaster()">👥 メンバー・班・役職をNotionから読み直す</button>
+    <button class="outline" onclick="reloadMaster()">${ic("users")}メンバー・班・役職をNotionから読み直す</button>
     <p class="muted" style="text-align:center">入会・退会や班替え、役職の追加をしたあとに押すと、すぐ画面に反映されます（ふだんは1日1回、自動で読み直します）。</p>`;
 }
 function listRows(kind){
@@ -301,7 +301,7 @@ function tagHtml(s){
 /** 各行のボタン。よく使うボタンを1つだけ出し、ほかは「その他 ▾」のメニューにまとめる */
 function actsHtml(s){
   const b = (cls, fn, label) => `<button class="mini ${cls}" onclick="${fn}('${s.id}')">${label}</button>`;
-  const more = `<button class="mini gray" onclick="openActMenu(event,'${s.id}')">その他 ▾</button>`;
+  const more = `<button class="mini gray" onclick="openActMenu(event,'${s.id}')">その他${ic("down")}</button>`;
   switch(s.status){
     case "公開待ち": return b("", "publishNow", "今すぐ公開") + more;
     case "受付中":   return b("", "openDetail", "回答一覧") + more;
@@ -314,15 +314,15 @@ function actsHtml(s){
 function actMenuItems(s){
   const it = (fn, label, cls) => ({ fn: fn, label: label, cls: cls || "" });
   const items = [];
-  if(s.status === "受付中") items.push(it("copyRemind", "📋 リマインド文"));
-  if((s.status === "受付中" || s.status === "公開待ち") && s.formUrl) items.push(it("formLinkModal", "🔗 フォームのURLをコピー"));
-  if(s.status === "締め切り") items.push(it("reopen", "↩ 受付を再開"));
-  items.push(it("editSurvey", "✏️ 編集"));
-  items.push(it("toggleSecret", s.secret ? "🔓 回答を公開に戻す" : "🔒 回答を非公開にする"));
-  if(s.status !== "締め切り" && s.editUrl) items.push(it("editQuestions", "📝 質問を編集"));
-  items.push(it("duplicate", "📄 複製"));
+  if(s.status === "受付中") items.push(it("copyRemind", ic("bell") + "リマインド文"));
+  if((s.status === "受付中" || s.status === "公開待ち") && s.formUrl) items.push(it("formLinkModal", ic("link") + "フォームのURLをコピー"));
+  if(s.status === "締め切り") items.push(it("reopen", ic("undo") + "受付を再開"));
+  items.push(it("editSurvey", ic("pencil") + "編集"));
+  items.push(it("toggleSecret", s.secret ? ic("unlock") + "回答を公開に戻す" : ic("lock") + "回答を非公開にする"));
+  if(s.status !== "締め切り" && s.editUrl) items.push(it("editQuestions", ic("file") + "質問を編集"));
+  items.push(it("duplicate", ic("copy") + "複製"));
   items.push("hr");
-  items.push(it("removeSurvey", "🗑 削除", "danger"));
+  items.push(it("removeSurvey", ic("trash") + "削除", "danger"));
   return items;
 }
 /** 「その他 ▾」を押したとき、ボタンの下にメニューを開く（もう一度押すと閉じる） */
@@ -356,7 +356,7 @@ function rowHtml(s){
   const kiTag = kiView === "all" || kiOf(s) !== CUR_KI ? `<span class="ki">${kiOf(s)}期</span>` : "";
   return `<div class="li c ${isClosed(s) ? "closed" : ""}">
       <div class="tg">${tagHtml(s)}</div>
-      <div class="t">${esc(s.title)}<small>${kiTag}${tab === "all" && roleName(s.roleId) ? `<span class="role">${esc(roleName(s.roleId))}</span>` : ""}<span class="unit">${s.unit === "班ごと" ? "班ごと" : "人ごと"}</span>${s.allowGuest ? '<span class="guest">リスト外も受付</span>' : ""}${s.secret ? '<span class="secret">🔒 回答非公開</span>' : ""}${s.status === "公開待ち" && s.publishAt ? `<span class="meta">公開 ${fmt(s.publishAt)}</span>` : ""}${s.author ? `<span class="meta">作成 ${esc(s.author)}</span>` : ""}</small></div>
+      <div class="t">${esc(s.title)}<small>${kiTag}${tab === "all" && roleName(s.roleId) ? `<span class="role">${esc(roleName(s.roleId))}</span>` : ""}<span class="unit">${s.unit === "班ごと" ? "班ごと" : "人ごと"}</span>${s.allowGuest ? '<span class="guest">リスト外も受付</span>' : ""}${s.secret ? `<span class="secret">${ic("lock")}回答非公開</span>` : ""}${s.status === "公開待ち" && s.publishAt ? `<span class="meta">公開 ${fmt(s.publishAt)}</span>` : ""}${s.author ? `<span class="meta">作成 ${esc(s.author)}</span>` : ""}</small></div>
       <div class="prog">${s.status === "公開待ち" || s.status === "生成中" ? '<span class="muted">公開前</span>' : `<span class="bar"><span style="width:${rate(s)}%"></span></span><b>${rate(s)}%</b><small>${s.answered} / ${s.total}${s.unit === "班ごと" ? "班" : "名"}${s.guest ? `＋リスト外${s.guest}` : ""}</small>`}</div>
       <div class="dl">${fmtDl(s.deadline)}${s.status === "受付中" ? leftHtml(s.deadline) : ""}</div>
       <div class="acts">${actsHtml(s)}</div></div>`;
@@ -379,7 +379,7 @@ const showFilt = { open: false, closed: false };
 /** 検索ボックスと「絞り込み・並び替え」ボタン、開いたときの欄 */
 function toolHtml(kind){
   return `<div class="tool">
-        <input placeholder="🔍 アンケート名で検索" value="${esc(L[kind].kw)}" oninput="L.${kind}.kw=this.value;updateList();updateTool('${kind}')">
+        <div class="search">${ic("search")}<input placeholder="アンケート名で検索" value="${esc(L[kind].kw)}" oninput="L.${kind}.kw=this.value;updateList();updateTool('${kind}')"></div>
         <button id="filtBtn_${kind}" class="btn gray sm filtbtn${showFilt[kind] ? " on" : ""}" onclick="showFilt.${kind}=!showFilt.${kind};updateTool('${kind}')">${filtBtnLabel(kind)}</button>
       </div>
       <div id="filtBox_${kind}">${filtBoxHtml(kind)}</div>`;
@@ -391,7 +391,7 @@ function filtCount(kind){
 }
 function filtBtnLabel(kind){
   const n = filtCount(kind);
-  return `⚙ 絞り込み<span class="wide">・並び替え</span>${n ? `<span class="fc">${n}</span>` : ""} ${showFilt[kind] ? "▴" : "▾"}`;
+  return `${ic("sliders")}絞り込み<span class="wide">・並び替え</span>${n ? `<span class="fc">${n}</span>` : ""}${showFilt[kind] ? ic("up") : ic("down")}`;
 }
 function filtBoxHtml(kind){
   if(!showFilt[kind]) return "";
@@ -401,7 +401,7 @@ function filtBoxHtml(kind){
     <label>回答状況<select onchange="L.${kind}.rt=this.value;${ch}">${o("", "すべて", f.rt)}${o("lo", "50%未満", f.rt)}${o("mid", "50〜79%", f.rt)}${o("hi", "80%以上", f.rt)}</select></label>
     ${kind === "open" ? `<label>締め切りまで<select onchange="L.open.dl=this.value;${ch}">${o("", "すべて", f.dl)}${o("7", "7日以内", f.dl)}${o("30", "30日以内", f.dl)}</select></label>` : ""}
     <label>並び順<select onchange="L.${kind}.sort=this.value;${ch}">${Object.keys(SORT_LABEL).map(k => o(k, SORT_LABEL[k], f.sort)).join("")}</select></label>
-    <button class="btn gray sm" onclick="L.${kind}.dir=L.${kind}.dir==='asc'?'desc':'asc';${ch}">${f.dir === "asc" ? "▲ 昇順" : "▼ 降順"}</button>
+    <button class="btn gray sm" onclick="L.${kind}.dir=L.${kind}.dir==='asc'?'desc':'asc';${ch}">${f.dir === "asc" ? ic("arrowUp") + "昇順" : ic("arrowDown") + "降順"}</button>
     ${filtCount(kind) || f.kw ? `<a href="#" class="clr" onclick="L.${kind}=L0().${kind};render();return false;">× 条件をクリア</a>` : ""}
   </div>`;
 }
@@ -442,7 +442,7 @@ async function createSurvey(){
   checkReady();
 }
 function doneModal(title, note, url){
-  modal(`<h3 style="margin-top:0">✅ ${esc(title)}</h3><p class="muted">${esc(note)}</p>
+  modal(`<h3 style="margin-top:0">${ic("check")}${esc(title)}</h3><p class="muted">${esc(note)}</p>
     ${url ? `<p style="margin-bottom:4px"><b>質問の追加はこちら</b></p>
     <div class="done-url"><a href="#" onclick="openFormWin('${url}');return false;">${esc(url)}</a></div>
     <button class="btn" onclick="openFormWin('${url}')">フォームの編集画面を開く</button> ` : ""}
@@ -455,7 +455,7 @@ function openFormWin(url){
   formWin = window.open(url, "surveyFormEdit", `popup=yes,width=${w},height=${h},left=${left},top=${top}`);
   if(!formWin){ window.open(url, "_blank"); return; }
   formWin.focus();
-  modal(`<h3 style="margin-top:0">✏️ フォームを編集中</h3>
+  modal(`<h3 style="margin-top:0">${ic("file")}フォームを編集中</h3>
     <p>横に開いたウィンドウで質問を足してください。<b>終わったらそのウィンドウを閉じる</b>と、この画面に戻ります。</p>
     <p class="muted">Googleフォームは自動で保存されるので、保存ボタンはありません。</p>
     <button class="btn gray" onclick="formWin && formWin.focus()">編集ウィンドウを前に出す</button>
@@ -467,7 +467,7 @@ function finishFormEdit(){
   clearInterval(formTimer); formTimer = null;
   try { if(formWin && !formWin.closed) formWin.close(); } catch(e){}
   formWin = null;
-  modal(`<h3 style="margin-top:0">✅ おつかれさまでした</h3><p>フォームの編集が終わりました。</p>
+  modal(`<h3 style="margin-top:0">${ic("check")}おつかれさまでした</h3><p>フォームの編集が終わりました。</p>
     <button class="btn" onclick="closeModal()">アンケート管理に戻る</button>`);
   view = null; load();
 }
@@ -548,7 +548,7 @@ function remindText(title, deadline, names, unit){
 }
 /** リマインド文をポップアップで出す。その場で直してから、ボタンで全部コピーできる */
 function remindModal(msg){
-  modal(`<h3 style="margin-top:0">📋 リマインド文</h3>
+  modal(`<h3 style="margin-top:0">${ic("bell")}リマインド文</h3>
     <p class="muted">必要なら、ここで文章を直してからコピーしてください。</p>
     <textarea id="remindBox"></textarea>
     <div style="margin-top:12px"><button class="btn" onclick="copyRemindBox()">全部コピーする</button>
@@ -575,7 +575,7 @@ function formLinkModal(id){
   notes.push(s.allowGuest
     ? `<p class="muted">名簿にない方は、お名前の欄で「リストにない方」を選んで、お名前を入力してから回答します。</p>`
     : `<p class="muted">このアンケートは「リスト外も受付」がオフなので、名簿にない方は回答できません。${s.status === "公開待ち" ? "受け付けるときは「編集」からオンにしてください。" : ""}</p>`);
-  modal(`<h3 style="margin-top:0">🔗 フォームのURL</h3>
+  modal(`<h3 style="margin-top:0">${ic("link")}フォームのURL</h3>
     <p class="muted">${esc(s.title)}</p>
     <input id="formLinkBox" type="text" readonly style="width:100%;box-sizing:border-box">
     ${notes.join("")}
@@ -616,18 +616,18 @@ function renderDetail(id){
   const qHtml = m.questions.map(q => {
     if(q.kind === "choice"){
       const n = q.answeredCount;
-      return `<div class="sumq"><div class="sumt">📊 ${esc(q.title)}${q.multi ? "（複数選択）" : ""}</div>` + q.items.map(it => {
+      return `<div class="sumq"><div class="sumt">${ic("chart")}${esc(q.title)}${q.multi ? "（複数選択）" : ""}</div>` + q.items.map(it => {
         const pct = n ? Math.round(it.count / n * 100) : 0;
         return `<div class="sr"><span title="${esc(it.choice)}">${esc(it.choice)}</span><span class="sb"><span style="width:${pct}%"></span></span><span class="sn">${it.count}${unitW}<small>${pct}%</small></span></div>`;
       }).join("") + (q.others.length ? `<p class="muted">その他の内容：${q.others.map(x => esc(x.value) + "（" + esc(x.label) + "）").join("、")}</p>` : "") + `</div>`;
     }
     if(q.kind === "grid"){
-      return `<div class="sumq" style="grid-column:1/-1"><div class="sumt">📊 ${esc(q.title)}</div><div class="scroll"><table class="tbl"><tr><th></th>${q.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr>` +
+      return `<div class="sumq" style="grid-column:1/-1"><div class="sumt">${ic("chart")}${esc(q.title)}</div><div class="scroll"><table class="tbl"><tr><th></th>${q.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr>` +
         q.rows.map(r => `<tr><td>${esc(r.row)}</td>${q.columns.map(c => `<td>${r.counts[c]}</td>`).join("")}</tr>`).join("") + `</table></div></div>`;
     }
     return "";
   }).join("");
-  const tHtml = m.questions.filter(q => q.kind === "text").map(q => `<div class="txt"><div class="h">💬 ${esc(q.title)}（${q.answers.length}件）</div>` +
+  const tHtml = m.questions.filter(q => q.kind === "text").map(q => `<div class="txt"><div class="h">${ic("comment")}${esc(q.title)}（${q.answers.length}件）</div>` +
     (q.answers.length ? q.answers.map(a => `<div class="r"><b>${esc(a.label)}</b>${esc(a.value)}</div>`).join("") : `<div class="r muted">まだ回答はありません</div>`) + `</div>`).join("");
   const rn = s ? roleName(s.roleId) : "";
   document.getElementById("app").innerHTML = `<button class="btn gray" onclick="view=null;render()">‹ 一覧に戻る</button>
@@ -637,13 +637,13 @@ function renderDetail(id){
       <div class="bar" style="max-width:400px;margin:12px auto 0"><span style="width:${m.rate}%"></span></div></div>
     <div class="panel"><h2>未回答の${m.unit === "班ごと" ? "班" : "方"}（${m.unanswered.length}${unitW}）</h2>
       ${m.unanswered.length ? `<div class="names">${m.unanswered.map(n => `<span>${esc(n)}</span>`).join("")}</div>
-        <button class="btn" onclick="remindModal(remindText(SUM.title, SUM.deadline, SUM.unanswered, SUM.unit))">📋 リマインド文を作る</button>` : `<div class="empty">🎉 全員回答済みです！</div>`}</div>
+        <button class="btn" onclick="remindModal(remindText(SUM.title, SUM.deadline, SUM.unanswered, SUM.unit))">${ic("bell")}リマインド文を作る</button>` : `<div class="empty">全員回答済みです！</div>`}</div>
     <div class="panel"><h2>回答の集計（${m.answered}${unitW}）</h2>
       ${m.questions.length ? "" : `<div class="empty">お名前以外の質問がまだありません。フォームの編集画面から質問を足してください。</div>`}
       ${qHtml ? `<div class="sum">${qHtml}</div>` : ""}${tHtml}
       <p class="muted">修正された回答は、最新の内容で集計しています。新しい回答が届くと、集計も自動で新しくなります。フォームに質問を足したあとは、下のボタンで作り直してください。</p>
-      <button class="btn gray sm" onclick="openDetail('${id}', true)">↻ 集計を作り直す</button>
-      <button class="btn sm" onclick="csvExport('${id}')">⬇ CSVで出力</button></div>
+      <button class="btn gray sm" onclick="openDetail('${id}', true)">${ic("refresh")}集計を作り直す</button>
+      <button class="btn sm" onclick="csvExport('${id}')">${ic("download")}CSVで出力</button></div>
     ${m.status === "受付中" ? `<button class="outline" onclick="closeSurvey('${id}')">このアンケートを締め切る</button>
       <p class="muted" style="text-align:center">締め切り（${fmtDl(m.deadline)}）を過ぎると自動で締め切られます。早めに締めたいときはこのボタンを押してください。</p>`
     : m.status === "締め切り" ? `<button class="outline" onclick="reopen('${id}')">受付を再開する</button>` : ""}`;
@@ -666,7 +666,7 @@ function editSurvey(id){
     <label class="chk"><input type="checkbox" id="eg" ${s.allowGuest ? "checked" : ""} ${canUnit ? "" : "disabled"}> 名簿にない人も回答できるようにする</label>
     <p class="muted">${canUnit ? "オンにすると、フォームの名前の選択肢に「リストにない方」が加わり、選んだ人は名前を書いてから質問に進みます。" : "リスト外の受け付けも、公開したあとは変えられません。"}</p>
     <label>回答の公開</label>
-    <label class="chk"><input type="checkbox" id="es" ${s.secret ? "checked" : ""}> 🔒 回答を非公開にする（管理者だけが見られる）</label>
+    <label class="chk"><input type="checkbox" id="es" ${s.secret ? "checked" : ""}> ${ic("lock")}回答を非公開にする（管理者だけが見られる）</label>
     <p class="muted">オンにすると、回答する人の画面で「回答を見る」「修正する」が出なくなり、自分の答えも他の人の答えも見られなくなります。直したい人は「答え直す」で最初から送り直します。いつでも切り替えられます。</p>
     <button class="btn" onclick="doEdit('${id}')">保存する</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
 }
@@ -674,7 +674,7 @@ function editSurvey(id){
 function toggleSecret(id){
   const s = find(id);
   const toSecret = !s.secret;
-  modal(`<h3 style="margin-top:0">${toSecret ? "🔒 回答を非公開にする" : "🔓 回答を公開に戻す"}</h3><p><b>${esc(s.title)}</b></p>
+  modal(`<h3 style="margin-top:0">${toSecret ? ic("lock") + "回答を非公開にする" : ic("unlock") + "回答を公開に戻す"}</h3><p><b>${esc(s.title)}</b></p>
     <p>${toSecret
       ? "回答する人の画面で「回答を見る」「修正する」が出なくなり、答えは管理者だけが見られるようになります。直したい人は「答え直す」で最初から送り直します。"
       : "回答する人の画面で、自分（班ごとなら自分の班）の答えを「回答を見る」で見られるようになり、「修正する」で直せるようになります。"}</p>
@@ -720,7 +720,7 @@ async function csvExport(id){
     CSV = { filename: r.filename, text: toCsv(r.rows),
       tsv: r.rows.map(row => row.map(v => String(v ?? "").replace(/[\t\r\n]+/g, " ")).join("\t")).join("\n") };
     const n = r.rows.length - 1;
-    modal(`<h3 style="margin-top:0">⬇ CSVで出力</h3>
+    modal(`<h3 style="margin-top:0">${ic("download")}CSVで出力</h3>
       <p class="muted">回答した人だけの${n}件です（リスト外の回答も含みます）。ファイル名：${esc(r.filename)}</p>
       ${n ? `<textarea class="csv-box" readonly>${esc(CSV.text)}</textarea>` : `<div class="empty">まだ回答はありません</div>`}
       ${n ? `<button class="btn" onclick="csvDownload()">ファイルをダウンロード</button> <button class="btn gray" onclick="csvCopy()">全部コピーする</button> ` : ""}
