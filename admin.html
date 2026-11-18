@@ -274,7 +274,7 @@ function renderList(){
         <div><label>リスト外の回答</label><label class="chk"><input type="checkbox" id="guest"> 名簿にない人も回答できるようにする</label></div>
       </div>
       <div class="form-grid">
-        <div><label>${ic("lock")}回答の表示</label><label class="chk"><input type="checkbox" id="secret"> 回答を非表示にする（管理者だけが見られる）</label></div>
+        <div><label>${ic("lock")}回答の表示</label><label class="chk"><input type="checkbox" id="secret"> 回答を非表示にする（管理者だけ確認可能）</label></div>
       </div>
       <div class="form-grid">
         <div><label>期</label>${kiSelect("kiSel", CUR_KI)}</div>
@@ -684,7 +684,7 @@ function editSurvey(id){
     <label class="chk"><input type="checkbox" id="eg" ${s.allowGuest ? "checked" : ""} ${canUnit ? "" : "disabled"}> 名簿にない人も回答できるようにする</label>
     <p class="muted">${canUnit ? "オンにすると、フォームの名前の選択肢に「リストにない方」が加わり、選んだ人は名前を書いてから質問に進みます。" : "リスト外の受け付けも、公開したあとは変えられません。"}</p>
     <label>${ic("lock")}回答の表示</label>
-    <label class="chk"><input type="checkbox" id="es" ${s.secret ? "checked" : ""}> 回答を非表示にする（管理者だけが見られる）</label>
+    <label class="chk"><input type="checkbox" id="es" ${s.secret ? "checked" : ""}> 回答を非表示にする（管理者だけ確認可能）</label>
     <p class="muted">オンにすると、回答する人の画面で「回答を見る」「修正する」が出なくなり、自分の答えも他の人の答えも見られなくなります。直したい人は「答え直す」で最初から送り直します。いつでも切り替えられます。</p>
     <button class="btn" onclick="doEdit('${id}')">保存する</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
 }
