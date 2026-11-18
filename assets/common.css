@@ -32,6 +32,7 @@ select,input,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radiu
 .bar{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin-top:10px}
 .bar span{display:block;height:100%;background:var(--red)}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid var(--red);color:var(--red);white-space:nowrap}
+.tag.open{background:var(--red);color:#fff}
 .tag.closed{border-color:#999;color:#999}
 .tag.wait{border-color:#2b6cb0;color:#2b6cb0}
 .tag.gen{border-color:#c98a00;color:#c98a00}
