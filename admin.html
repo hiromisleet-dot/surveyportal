@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アンケート管理</title>
-<link rel="stylesheet" href="assets/common.css">
-<script src="assets/config.js"></script>
-<script src="assets/common.js"></script>
+<link rel="stylesheet" href="assets/common.css?v=3">
+<script src="assets/config.js?v=3"></script>
+<script src="assets/common.js?v=3"></script>
 <style>
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;align-items:center}
 .tabs button{background:#fff;border:1px solid var(--line);color:#555;border-radius:18px;padding:8px 16px;font-size:14px;cursor:pointer;font-family:inherit}
@@ -32,6 +32,7 @@
 .chk{display:flex;align-items:center;gap:8px;font-size:14px;color:#333;margin:6px 0 12px;cursor:pointer}
 .chk input{width:auto;margin:0}
 .guest{display:inline-block;font-size:11px;color:#b7791f;border:1px solid #b7791f;border-radius:8px;padding:0 6px;margin-right:4px}
+.secret{display:inline-block;font-size:11px;color:#c53030;border:1px solid #c53030;border-radius:8px;padding:0 6px;margin-right:4px}
 .unit{display:inline-block;font-size:11px;color:#4a5568;border:1px solid #4a5568;border-radius:8px;padding:0 6px;margin-right:4px}
 .csv-box{width:100%;height:160px;font-size:12px;font-family:monospace;white-space:pre;margin:8px 0 12px}
 .tile .lb{font-size:16px;font-weight:bold;color:#222;padding-bottom:8px;margin-bottom:6px;border-bottom:1px solid var(--line)}
@@ -246,6 +247,9 @@ function renderList(){
         <div><label>作成者 <span class="req">必須</span></label><input id="author" placeholder="お名前" value="${esc(localStorage.getItem(AUTHOR_KEY) || "")}" oninput="checkReady()"></div>
         <div><label>リスト外の回答</label><label class="chk"><input type="checkbox" id="guest"> 名簿にない人も回答できるようにする</label></div>
       </div>
+      <div class="form-grid">
+        <div><label>回答の公開</label><label class="chk"><input type="checkbox" id="secret"> 🔒 回答を非公開にする（管理者だけが見られる）</label></div>
+      </div>
       <p id="needMsg" class="need">必要事項をすべて入力してください</p>
       <button class="btn" id="createBtn" onclick="createSurvey()" disabled>作成する</button>
       <p class="muted">作成すると、名前のプルダウン入りのGoogleフォームができます。完了の画面に出るリンクから、聞きたい質問を足してください。公開日時を入れた場合は、その時刻まで「公開待ち」になります（最大15分遅れます）。期は今期が最初から入っています。次の期のアンケートを先に作るときは切り替えてください。</p></div>
@@ -342,7 +346,7 @@ function rowHtml(s){
   const kiTag = kiView === "all" || kiOf(s) !== CUR_KI ? `<span class="ki">${kiOf(s)}期</span>` : "";
   return `<div class="li c ${isClosed(s) ? "closed" : ""}">
       <div class="tg">${tagHtml(s)}</div>
-      <div class="t">${esc(s.title)}<small>${kiTag}${tab === "all" && roleName(s.roleId) ? `<span class="role">${esc(roleName(s.roleId))}</span>` : ""}<span class="unit">${s.unit === "班ごと" ? "班ごと" : "人ごと"}</span>${s.allowGuest ? '<span class="guest">リスト外も受付</span>' : ""}${s.status === "公開待ち" && s.publishAt ? "・公開 " + fmt(s.publishAt) : ""}${s.author ? "・作成 " + esc(s.author) : ""}</small></div>
+      <div class="t">${esc(s.title)}<small>${kiTag}${tab === "all" && roleName(s.roleId) ? `<span class="role">${esc(roleName(s.roleId))}</span>` : ""}<span class="unit">${s.unit === "班ごと" ? "班ごと" : "人ごと"}</span>${s.allowGuest ? '<span class="guest">リスト外も受付</span>' : ""}${s.secret ? '<span class="secret">🔒 回答非公開</span>' : ""}${s.status === "公開待ち" && s.publishAt ? "・公開 " + fmt(s.publishAt) : ""}${s.author ? "・作成 " + esc(s.author) : ""}</small></div>
       <div class="prog">${s.status === "公開待ち" || s.status === "生成中" ? '<span class="muted">公開前</span>' : `<span class="bar"><span style="width:${rate(s)}%"></span></span><b>${rate(s)}%</b><small>${s.answered} / ${s.total}${s.unit === "班ごと" ? "班" : "名"}${s.guest ? `＋リスト外${s.guest}` : ""}</small>`}</div>
       <div class="dl">${fmtDl(s.deadline)}${s.status === "受付中" ? leftHtml(s.deadline) : ""}</div>
       <div class="acts">${actsHtml(s)}</div></div>`;
@@ -376,7 +380,8 @@ async function createSurvey(){
   const p = { title: document.getElementById("ttl").value.trim(), deadline: document.getElementById("dl").value,
     publishAt: document.getElementById("pub").value, unit: document.getElementById("unit").value,
     author: document.getElementById("author").value.trim(), roleId: document.getElementById("role").value,
-    ki: Number(document.getElementById("kiSel").value) || CUR_KI, allowGuest: !!(document.getElementById("guest") || {}).checked };
+    ki: Number(document.getElementById("kiSel").value) || CUR_KI, allowGuest: !!(document.getElementById("guest") || {}).checked,
+    secret: !!(document.getElementById("secret") || {}).checked };
   if(p.deadline < todayStr()){ toast("締め切りは今日以降の日付にしてください"); return; }
   localStorage.setItem(AUTHOR_KEY, p.author);
   const btn = document.getElementById("createBtn"); btn.disabled = true;
@@ -617,12 +622,15 @@ function editSurvey(id){
     <label>リスト外の回答</label>
     <label class="chk"><input type="checkbox" id="eg" ${s.allowGuest ? "checked" : ""} ${canUnit ? "" : "disabled"}> 名簿にない人も回答できるようにする</label>
     <p class="muted">${canUnit ? "オンにすると、フォームの名前の選択肢に「リストにない方」が加わり、選んだ人は名前を書いてから質問に進みます。" : "リスト外の受け付けも、公開したあとは変えられません。"}</p>
+    <label>回答の公開</label>
+    <label class="chk"><input type="checkbox" id="es" ${s.secret ? "checked" : ""}> 🔒 回答を非公開にする（管理者だけが見られる）</label>
+    <p class="muted">オンにすると、回答する人の画面で「回答を見る」「修正する」が出なくなり、自分の答えも他の人の答えも見られなくなります。直したい人は「答え直す」で最初から送り直します。いつでも切り替えられます。</p>
     <button class="btn" onclick="doEdit('${id}')">保存する</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
 }
 /** 編集の内容をサーバーに送る */
 async function doEdit(id){
   const s = find(id);
-  const p = { roleId: document.getElementById("er").value, ki: Number(document.getElementById("ek").value) || kiOf(s) };
+  const p = { roleId: document.getElementById("er").value, ki: Number(document.getElementById("ek").value) || kiOf(s), secret: document.getElementById("es").checked };
   if(s.status === "公開待ち"){ p.unit = document.getElementById("eu").value; p.allowGuest = document.getElementById("eg").checked; }
   modal(`<div class="loading">保存中…</div>`);
   try {

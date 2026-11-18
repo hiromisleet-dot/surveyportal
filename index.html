@@ -4,11 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アンケート回答状況</title>
-<link rel="stylesheet" href="assets/common.css">
-<script src="assets/config.js"></script>
-<script src="assets/common.js"></script>
+<link rel="stylesheet" href="assets/common.css?v=3">
+<script src="assets/config.js?v=3"></script>
+<script src="assets/common.js?v=3"></script>
 <style>
 .role{display:inline-block;font-size:11px;color:#7048b6;border:1px solid #7048b6;border-radius:8px;padding:0 6px;margin-right:4px;line-height:1.6}
+.secret-note{display:block;font-size:12px;color:#c53030;margin-top:2px}
 </style>
 </head>
 <body>
@@ -105,7 +106,8 @@ function sub(s){
     text = s.state === "回答済み" ? `${esc(s.han)}班として回答済み（${esc(s.answeredBy)}さんが回答）`
       : `${esc(s.han)}班として回答します（班の誰か1人が答えればOK）`;
   }
-  return (s.roleName || text) ? `<small>${roleTag(s)}${text}</small>` : "";
+  const lock = s.secret ? '<span class="secret-note">🔒 回答は管理者だけが見られます</span>' : "";
+  return (s.roleName || text || lock) ? `<small>${roleTag(s)}${text}${lock}</small>` : "";
 }
 function render(){
   const list = DATA.filter(s => s.state !== "対象外（退会）");
@@ -117,7 +119,9 @@ function render(){
       <div class="t">${esc(s.title)}${sub(s)}</div>
       <div class="dl">締め切り ${fmtDl(s.deadline)}${open ? leftHtml(s.deadline) : ""}</div>
       <div class="at">回答 ${fmt(s.answeredAt)}${s.edited ? '<span class="edited">修正済み</span>' : ""}</div>
-      <div class="acts"><button class="mini gray" onclick="viewMine('${s.id}')">回答を見る</button>${open && s.editUrl ? `<button class="mini" onclick="editMine('${s.id}')">修正する</button>` : ""}</div></div>`;
+      <div class="acts">${s.secret
+        ? (open && s.formUrl ? `<button class="mini" onclick="redoMine('${s.id}')">答え直す</button>` : "")
+        : `<button class="mini gray" onclick="viewMine('${s.id}')">回答を見る</button>${open && s.editUrl ? `<button class="mini" onclick="editMine('${s.id}')">修正する</button>` : ""}`}</div></div>`;
 
   let h = `<div class="hello">こんにちは ${esc(first)}さん
     <small>あなたではない場合は <a href="#" onclick="changeMe();return false;">名前を選び直す</a>${updating ? '　<span class="muted">最新の情報を確認中…</span>' : ""}</small></div>
@@ -129,7 +133,7 @@ function render(){
     : `<div class="empty">🎉 すべて回答済みです。ありがとうございます！</div>`;
   h += `</div>`;
   if(doneOpen.length) h += `<div class="panel done"><h2>✏️ 回答済み・締め切り前（${doneOpen.length}件）</h2>
-      <p class="sec-note">新しく回答した順に並んでいます。締め切りまでは回答を修正できます</p><div class="list">${doneOpen.map(s => row(s, true)).join("")}</div></div>`;
+      <p class="sec-note">新しく回答した順に並んでいます。締め切りまでは回答を修正・答え直しできます</p><div class="list">${doneOpen.map(s => row(s, true)).join("")}</div></div>`;
   if(past.length) h += `<div class="panel past"><details ${showPast ? "open" : ""} ontoggle="showPast=this.open"><summary>🔒 締め切り済み（${past.length}件）</summary>
       <div class="in"><p class="sec-note" style="margin-top:0">回答の確認のみできます（新しい順）</p><div class="list">${past.map(s => row(s, false)).join("")}</div></div></details></div>`;
   h += `<p class="muted" style="text-align:center">回答を送ったあと、この画面に戻ると「回答済み」に変わります（反映まで1分ほどかかることがあります）</p>`;
@@ -180,6 +184,15 @@ function editMine(id){
       <button class="btn" onclick="openFormWin(find('${s.id}').editUrl, find('${s.id}').title, 'edit')">修正画面を開く</button>
       <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
   } else openFormWin(s.editUrl, s.title, "edit");
+}
+/** 回答を非公開にしているアンケートを、空のフォームから答え直す（いちばん新しい送信が答えになる） */
+function redoMine(id){
+  const s = find(id);
+  modal(`<h3 style="margin-top:0">${esc(s.title)}</h3>
+    <p>このアンケートの回答は管理者だけが見られるため、前の答えを開いて直すことはできません。</p>
+    <p><b>最初からもう一度答えて送信してください。</b>新しく送った答えが、${s.unit === "班ごと" ? esc(s.han) + "班の" : "あなたの"}回答になります。</p>
+    <button class="btn" onclick="openFormWin(find('${s.id}').formUrl, find('${s.id}').title, 'answer')">答え直す</button>
+    <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
 }
 /** 自分（自分の班）の回答を見る */
 async function viewMine(id){
