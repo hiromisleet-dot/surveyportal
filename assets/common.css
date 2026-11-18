@@ -77,6 +77,12 @@ select,input,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radiu
 .prog small{color:#888;font-size:11px;white-space:nowrap}
 .left{font-size:11px;color:#666;margin-left:4px}
 .left.soon{color:var(--red);font-weight:bold}
+/* タブレットくらいの幅：アンケート名を1行目に広く取り、ほかを2行目に並べる */
+@media(max-width:900px){
+  .li.r3{grid-template-columns:auto auto minmax(0,1fr);grid-template-areas:"t t t" "dl at ac";gap:6px 16px}
+  .li.c{grid-template-columns:90px minmax(0,1fr) auto auto;grid-template-areas:"tg t t t" "pr pr dl ac";gap:6px 12px}
+  .li .tg{grid-area:tg}.li .t{grid-area:t}.li .dl{grid-area:dl}.li .at{grid-area:at}.li .prog{grid-area:pr}.li .acts{grid-area:ac}
+}
 @media(max-width:600px){
   .li.r1{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"t t" "dl ac";gap:8px}
   .li.r3{grid-template-columns:minmax(0,1fr);grid-template-areas:"t" "dl" "at" "ac";gap:8px}
