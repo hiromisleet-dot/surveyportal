@@ -310,6 +310,7 @@ function actMenuItems(s){
   if((s.status === "受付中" || s.status === "公開待ち") && s.formUrl) items.push(it("formLinkModal", "🔗 フォームのURLをコピー"));
   if(s.status === "締め切り") items.push(it("reopen", "↩ 受付を再開"));
   items.push(it("editSurvey", "✏️ 編集"));
+  items.push(it("toggleSecret", s.secret ? "🔓 回答を公開に戻す" : "🔒 回答を非公開にする"));
   if(s.status !== "締め切り" && s.editUrl) items.push(it("editQuestions", "📝 質問を編集"));
   items.push(it("duplicate", "📄 複製"));
   items.push("hr");
@@ -627,6 +628,27 @@ function editSurvey(id){
     <label class="chk"><input type="checkbox" id="es" ${s.secret ? "checked" : ""}> 🔒 回答を非公開にする（管理者だけが見られる）</label>
     <p class="muted">オンにすると、回答する人の画面で「回答を見る」「修正する」が出なくなり、自分の答えも他の人の答えも見られなくなります。直したい人は「答え直す」で最初から送り直します。いつでも切り替えられます。</p>
     <button class="btn" onclick="doEdit('${id}')">保存する</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
+}
+/** 回答の公開・非公開を切り替える（その他メニューから） */
+function toggleSecret(id){
+  const s = find(id);
+  const toSecret = !s.secret;
+  modal(`<h3 style="margin-top:0">${toSecret ? "🔒 回答を非公開にする" : "🔓 回答を公開に戻す"}</h3><p><b>${esc(s.title)}</b></p>
+    <p>${toSecret
+      ? "回答する人の画面で「回答を見る」「修正する」が出なくなり、答えは管理者だけが見られるようになります。直したい人は「答え直す」で最初から送り直します。"
+      : "回答する人の画面で、自分（班ごとなら自分の班）の答えを「回答を見る」で見られるようになり、「修正する」で直せるようになります。"}</p>
+    <button class="btn" onclick="doToggleSecret('${id}', ${toSecret})">${toSecret ? "非公開にする" : "公開に戻す"}</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
+}
+async function doToggleSecret(id, toSecret){
+  modal(`<div class="loading">切り替え中…</div>`);
+  try {
+    await api("apiEditSurvey", id, { secret: toSecret });
+    closeModal();
+    toast(toSecret ? "回答を非公開にしました" : "回答を公開に戻しました");
+    view = null; load();
+  } catch(e){
+    modal(`<p>切り替えられませんでした：${esc(errMsg(e))}</p><button class="btn gray" onclick="closeModal()">閉じる</button>`);
+  }
 }
 /** 編集の内容をサーバーに送る */
 async function doEdit(id){
