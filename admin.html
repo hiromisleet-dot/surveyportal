@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アンケート管理</title>
-<link rel="stylesheet" href="assets/common.css?v=9">
-<script src="assets/config.js?v=9"></script>
-<script src="assets/common.js?v=9"></script>
+<link rel="stylesheet" href="assets/common.css?v=10">
+<script src="assets/config.js?v=10"></script>
+<script src="assets/common.js?v=10"></script>
 <style>
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;align-items:center}
 .tabs button{background:#fff;border:1px solid var(--line);color:#555;border-radius:18px;padding:8px 16px;font-size:14px;cursor:pointer;font-family:inherit}
@@ -18,6 +18,16 @@
 .kibar{flex-wrap:wrap}
 .kibar .rolelb{margin:0 0 0 16px}
 .kibar .rolesel{max-width:100%}
+.tool{display:flex;gap:8px;align-items:stretch;margin:0 0 8px}
+.tool input{flex:1;min-width:0;margin:0}
+.filtbtn{white-space:nowrap}
+@media(max-width:600px){.filtbtn .wide{display:none}}
+.filtbtn.on{background:#f4f4f4}
+.filtbtn .fc{display:inline-block;background:var(--red);color:#fff;border-radius:9px;font-size:11px;line-height:18px;min-width:18px;padding:0 5px;margin-left:6px}
+.filtbox{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:0 0 8px}
+.filtbox label{display:flex;align-items:center;gap:6px;margin:0;font-size:13px;color:#555}
+.filtbox select{width:auto;margin:0;padding:6px 8px}
+.filtbox .clr{margin-left:auto;font-size:13px}
 @media(max-width:600px){.kibar .rolelb{margin-left:0}}
 #createBtn:disabled{background:#bbb;border-color:#bbb;color:#fff;cursor:not-allowed;opacity:1}
 .req{font-size:11px;color:var(--red);margin-left:2px}
@@ -269,11 +279,11 @@ function renderList(){
       </div>
     </div>
     <div class="panel"><h2>📝 受付中・公開待ちのアンケート（${kiName}・${list.filter(s => !isClosed(s)).length}件）</h2>
-      <div class="filters" style="margin-bottom:12px">
-        <input placeholder="🔍 アンケート名で検索" value="${esc(L.kw)}" oninput="L.kw=this.value;updateList()">
-        <select onchange="L.rt=this.value;updateList()">${o("", "回答状況：すべて", L.rt)}${o("lo", "50%未満", L.rt)}${o("mid", "50〜79%", L.rt)}${o("hi", "80%以上", L.rt)}</select>
-        <button class="btn gray sm" onclick="L=L0();render()">条件をクリア</button>
+      <div class="tool">
+        <input placeholder="🔍 アンケート名で検索" value="${esc(L.kw)}" oninput="L.kw=this.value;updateList();updateTool()">
+        <button id="filtBtn" class="btn gray sm filtbtn${showFilt ? " on" : ""}" onclick="showFilt=!showFilt;updateTool()">${filtBtnLabel()}</button>
       </div>
+      <div id="filtBox">${filtBoxHtml()}</div>
       <div id="list_open">${listHtml("open")}</div></div>
     <div class="panel past"><details ${showClosed ? "open" : ""} ontoggle="showClosed=this.open"><summary>🔒 締め切り済みのアンケート（${kiName}・${closedN}件）</summary>
       <div class="in"><div id="list_closed">${listHtml("closed")}</div></div></details></div>
@@ -366,10 +376,9 @@ function rowHtml(s){
 function listHtml(kind){
   const rows = listRows(kind), st = L[kind], all = shown().filter(s => kind === "open" ? !isClosed(s) : isClosed(s)).length;
   const o = (v, t, cur) => `<option value="${v}" ${cur === v ? "selected" : ""}>${t}</option>`;
-  let h = `<div class="sorts"><span class="muted">並び順</span>
+  let h = kind === "open" ? `<p class="hit">該当 <b>${rows.length}</b> / ${all}件</p>` : `<div class="sorts"><span class="muted">並び順</span>
       <select onchange="L.${kind}.sort=this.value;updateList()">${Object.keys(SORT_LABEL).map(k => o(k, SORT_LABEL[k], st.sort)).join("")}</select>
       <button class="btn gray sm" onclick="L.${kind}.dir=L.${kind}.dir==='asc'?'desc':'asc';updateList()">${st.dir === "asc" ? "▲ 昇順" : "▼ 降順"}</button>
-      ${kind === "open" ? `<select onchange="L.dl=this.value;updateList()">${o("", "締め切りまで：すべて", L.dl)}${o("7", "締め切りまで7日以内", L.dl)}${o("30", "締め切りまで30日以内", L.dl)}</select>` : ""}
     </div><p class="hit">該当 <b>${rows.length}</b> / ${all}件</p>`;
   if(!all) return `<div class="empty">${kind === "open" ? "受付中のアンケートはありません" : "締め切り済みのアンケートはまだありません"}</div>`;
   if(!rows.length) return h + `<div class="empty">条件に合うアンケートはありません</div>`;
@@ -379,6 +388,35 @@ function listHtml(kind){
     return h + groups.map(g => `<div class="month">${esc(g.m)}<small>${g.rows.length}件</small></div><div class="list">${g.rows.map(rowHtml).join("")}</div>`).join("");
   }
   return h + `<div class="list">` + rows.map(rowHtml).join("") + `</div>`;
+}
+// ----- 絞り込み・並び替え（受付中・公開待ちの一覧） -----
+let showFilt = false;
+/** 初期値から変えている条件の数（回答状況・締め切りまで・並び順） */
+function filtCount(){
+  const d = L0().open;
+  return (L.rt ? 1 : 0) + (L.dl ? 1 : 0) + (L.open.sort !== d.sort || L.open.dir !== d.dir ? 1 : 0);
+}
+function filtBtnLabel(){
+  const n = filtCount();
+  return `⚙ 絞り込み<span class="wide">・並び替え</span>${n ? `<span class="fc">${n}</span>` : ""} ${showFilt ? "▴" : "▾"}`;
+}
+function filtBoxHtml(){
+  if(!showFilt) return "";
+  const o = (v, t, cur) => `<option value="${v}" ${cur === v ? "selected" : ""}>${t}</option>`;
+  const st = L.open;
+  return `<div class="filtbox">
+    <label>回答状況<select onchange="L.rt=this.value;updateList();updateTool()">${o("", "すべて", L.rt)}${o("lo", "50%未満", L.rt)}${o("mid", "50〜79%", L.rt)}${o("hi", "80%以上", L.rt)}</select></label>
+    <label>締め切りまで<select onchange="L.dl=this.value;updateList();updateTool()">${o("", "すべて", L.dl)}${o("7", "7日以内", L.dl)}${o("30", "30日以内", L.dl)}</select></label>
+    <label>並び順<select onchange="L.open.sort=this.value;updateList();updateTool()">${Object.keys(SORT_LABEL).map(k => o(k, SORT_LABEL[k], st.sort)).join("")}</select></label>
+    <button class="btn gray sm" onclick="L.open.dir=L.open.dir==='asc'?'desc':'asc';updateList();updateTool()">${st.dir === "asc" ? "▲ 昇順" : "▼ 降順"}</button>
+    ${filtCount() || L.kw ? `<a href="#" class="clr" onclick="L=L0();render();return false;">× 条件をクリア</a>` : ""}
+  </div>`;
+}
+/** ボタンの表示と、開いた欄だけを書き直す（検索欄は書き直さないので、入力中でも途切れない） */
+function updateTool(){
+  const btn = document.getElementById("filtBtn"), box = document.getElementById("filtBox");
+  if(btn){ btn.innerHTML = filtBtnLabel(); btn.classList.toggle("on", showFilt); }
+  if(box) box.innerHTML = filtBoxHtml();
 }
 function updateList(){
   document.getElementById("list_open").innerHTML = listHtml("open");
