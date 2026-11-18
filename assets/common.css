@@ -13,7 +13,7 @@ main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
 .panel.past{background:#e9eaeb;padding:0;overflow:hidden}
 .panel.past summary{padding:16px 20px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;color:#555;font-size:17px}
 .panel.past summary::-webkit-details-marker{display:none}
-.panel.past summary::after{content:"＋ 表示する";margin-left:auto;font-size:12px;color:var(--red)}
+.panel.past summary::after{content:"＋ 表示する";margin-left:auto;font-size:12px;color:var(--red);white-space:nowrap}
 .panel.past details[open] summary::after{content:"－ 閉じる"}
 .panel.past .in{padding:0 20px 16px}
 /* たたんだり開いたりできるパネル（新しいアンケートを作る） */
@@ -133,3 +133,24 @@ select,input,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radiu
 .tbl td{padding:8px;border-bottom:1px solid #eee}
 .scroll{overflow-x:auto;border-radius:6px}
 a{color:var(--red)}
+
+/* 一覧の検索ボックスと「絞り込み・並び替え」（作る人・回答する人で共通） */
+.tool{display:flex;gap:8px;align-items:stretch;margin:0 0 8px}
+.tool input{flex:1;min-width:0;margin:0}
+.filtbtn{white-space:nowrap}
+@media(max-width:600px){.filtbtn .wide{display:none}}
+.filtbtn.on{background:#f4f4f4}
+.filtbtn .fc{display:inline-block;background:var(--red);color:#fff;border-radius:9px;font-size:11px;line-height:18px;min-width:18px;padding:0 5px;margin-left:6px}
+.filtbox{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:0 0 8px}
+.filtbox label{display:flex;align-items:center;gap:6px;margin:0;font-size:13px;color:#555}
+.filtbox select{width:auto;margin:0;padding:6px 8px}
+.filtbox .clr{margin-left:auto;font-size:13px}
+/* 状態のタグ：回答済み・未回答（回答する人の締め切り済み一覧） */
+.tag.done{border-color:#888;background:#888;color:#fff}
+.tag.miss{border-color:var(--red);background:var(--red);color:#fff}
+.month{font-weight:bold;color:#555;font-size:14px;margin:16px 0 6px;padding-bottom:4px;border-bottom:2px solid var(--line)}
+.month small{font-weight:normal;color:#888;margin-left:6px}
+/* 締め切りまでに答えなかったアンケートの行を目立たせる */
+.li.miss{background:#fff5f5;box-shadow:inset 4px 0 0 var(--red)}
+.li.miss .pr{color:var(--red);font-weight:bold}
+.past-miss{color:var(--red);font-weight:bold}

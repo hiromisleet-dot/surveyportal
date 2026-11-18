@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アンケート回答状況</title>
-<link rel="stylesheet" href="assets/common.css?v=11">
-<script src="assets/config.js?v=11"></script>
-<script src="assets/common.js?v=11"></script>
+<link rel="stylesheet" href="assets/common.css?v=12">
+<script src="assets/config.js?v=12"></script>
+<script src="assets/common.js?v=12"></script>
 <style>
 .role{display:inline-block;font-size:11px;color:#7048b6;border:1px solid #7048b6;border-radius:8px;padding:0 6px;margin-right:4px;line-height:1.6}
 .secret-note{display:block;font-size:12px;color:#c53030;margin-top:2px}
+@media(min-width:601px){.panel.past .li.c .acts{min-width:100px}}
 </style>
 </head>
 <body>
@@ -102,18 +103,22 @@ const roleTag = s => s.roleName ? `<span class="role">${esc(s.roleName)}</span>`
 /** タイトルの下に出す補足（役職のタグ、班ごとなら「A01班として」など） */
 function sub(s){
   let text = "";
-  if(s.unit === "班ごと"){
+  const missed = s.status === "締め切り" && s.state === "未回答";
+  if(s.unit === "班ごと" && missed){
+    text = `${esc(s.han)}班として回答するアンケートでした`;
+  } else if(s.unit === "班ごと"){
     text = s.state === "回答済み" ? `${esc(s.han)}班として回答済み（${esc(s.answeredBy)}さんが回答）`
       : `${esc(s.han)}班として回答します（班の誰か1人が答えればOK）`;
   }
-  const lock = s.secret ? '<span class="secret-note">🔒 回答は管理者だけが見られます</span>' : "";
+  const lock = s.secret && !missed ? '<span class="secret-note">🔒 回答は管理者だけが見られます</span>' : "";
   return (s.roleName || text || lock) ? `<small>${roleTag(s)}${text}${lock}</small>` : "";
 }
 function render(){
   const list = DATA.filter(s => s.state !== "対象外（退会）");
   const todo = list.filter(s => s.status === "受付中" && s.state === "未回答").sort(byDl);
   const doneOpen = list.filter(s => s.status === "受付中" && s.state === "回答済み").sort(byAnsweredDesc);
-  const past = list.filter(s => s.status === "締め切り" && s.state === "回答済み").sort((a, b) => byDl(b, a));
+  const past = list.filter(s => s.status === "締め切り" && (s.state === "回答済み" || s.state === "未回答"));
+  const pastMiss = past.filter(s => s.state === "未回答").length;
   const first = me().name.split(/[\s　]/)[0];
   const row = (s, open) => `<div class="li r3">
       <div class="t">${esc(s.title)}${sub(s)}</div>
@@ -134,12 +139,79 @@ function render(){
   h += `</div>`;
   if(doneOpen.length) h += `<div class="panel done"><h2>✏️ 回答済み・締め切り前（${doneOpen.length}件）</h2>
       <p class="sec-note">新しく回答した順に並んでいます。締め切りまでは回答を修正・答え直しできます</p><div class="list">${doneOpen.map(s => row(s, true)).join("")}</div></div>`;
-  if(past.length) h += `<div class="panel past"><details ${showPast ? "open" : ""} ontoggle="showPast=this.open"><summary>🔒 締め切り済み（${past.length}件）</summary>
-      <div class="in"><p class="sec-note" style="margin-top:0">回答の確認のみできます（新しい順）</p><div class="list">${past.map(s => row(s, false)).join("")}</div></div></details></div>`;
+  if(past.length) h += `<div class="panel past"><details ${showPast ? "open" : ""} ontoggle="showPast=this.open"><summary><span>🔒 締め切り済み（${past.length}件${pastMiss ? `・<span class="past-miss">うち未回答 ${pastMiss}件</span>` : ""}）</span></summary>
+      <div class="in">${toolHtml()}<div id="pastList">${pastListHtml()}</div></div></details></div>`;
   h += `<p class="muted" style="text-align:center">回答を送ったあと、この画面に戻ると「回答済み」に変わります（反映まで1分ほどかかることがあります）</p>`;
   document.getElementById("app").innerHTML = h;
 }
 const find = id => DATA.find(s => s.id === id);
+
+// ----- 締め切り済みの一覧（検索・絞り込み・並び替えは、作る人の画面の締め切り済みと同じ形） -----
+const P0 = () => ({ kw: "", st: "", sort: "deadline", dir: "desc" });
+let P = P0(), showFilt = false;
+const PAST_SORT = { deadline: "締め切り", title: "アンケート名", state: "未回答を先に" };
+function pastRows(){
+  let rows = DATA.filter(s => s.status === "締め切り" && (s.state === "回答済み" || s.state === "未回答"));
+  const kw = P.kw.trim();
+  if(kw) rows = rows.filter(s => s.title.includes(kw));
+  if(P.st) rows = rows.filter(s => s.state === P.st);
+  const ja = (a, b) => a.title.localeCompare(b.title, "ja", { numeric: true });
+  const by = {
+    deadline: (a, b) => String(a.deadline).localeCompare(String(b.deadline)) || ja(a, b),
+    title: ja,
+    state: (a, b) => (a.state === "未回答" ? 0 : 1) - (b.state === "未回答" ? 0 : 1) || String(b.deadline).localeCompare(String(a.deadline)),
+  };
+  rows.sort(by[P.sort] || by.deadline);
+  if(P.dir === "desc" && P.sort !== "state") rows.reverse();
+  return rows;
+}
+/** 締め切り済みの1行。左に「回答済み／未回答」のタグ、未回答の行は赤く目立たせる */
+function pastRowHtml(s){
+  const miss = s.state === "未回答";
+  return `<div class="li c${miss ? " miss" : ""}">
+      <div class="tg">${miss ? '<span class="tag miss">未回答</span>' : '<span class="tag done">回答済み</span>'}</div>
+      <div class="t">${esc(s.title)}${sub(s)}</div>
+      <div class="prog pr">${miss ? "締め切りまでに回答がありませんでした" : `回答 ${fmt(s.answeredAt)}${s.edited ? '<span class="edited">修正済み</span>' : ""}`}</div>
+      <div class="dl">締め切り ${fmtDl(s.deadline)}</div>
+      <div class="acts">${!miss && !s.secret ? `<button class="mini gray" onclick="viewMine('${s.id}')">回答を見る</button>` : ""}</div></div>`;
+}
+const monthOfDl = s => { const m = String(s.deadline).match(/^(\d{4})-(\d{2})/); return m ? `${m[1]}年${Number(m[2])}月締め切り` : "締め切り日なし"; };
+function pastListHtml(){
+  const rows = pastRows(), all = DATA.filter(s => s.status === "締め切り" && (s.state === "回答済み" || s.state === "未回答")).length;
+  let h = `<p class="hit">該当 <b>${rows.length}</b> / ${all}件</p>`;
+  if(!rows.length) return h + `<div class="empty">条件に合うアンケートはありません</div>`;
+  if(P.sort === "deadline"){
+    const groups = [];
+    rows.forEach(s => { const m = monthOfDl(s); const g = groups[groups.length - 1]; if(g && g.m === m) g.rows.push(s); else groups.push({ m: m, rows: [s] }); });
+    return h + groups.map(g => `<div class="month">${esc(g.m)}<small>${g.rows.length}件</small></div><div class="list">${g.rows.map(pastRowHtml).join("")}</div>`).join("");
+  }
+  return h + `<div class="list">${rows.map(pastRowHtml).join("")}</div>`;
+}
+function toolHtml(){
+  return `<div class="tool">
+      <input placeholder="🔍 アンケート名で検索" value="${esc(P.kw)}" oninput="P.kw=this.value;updatePast()">
+      <button id="filtBtn" class="btn gray sm filtbtn${showFilt ? " on" : ""}" onclick="showFilt=!showFilt;updatePast()">${filtBtnLabel()}</button>
+    </div><div id="filtBox">${filtBoxHtml()}</div>`;
+}
+function filtCount(){ const d = P0(); return (P.st ? 1 : 0) + (P.sort !== d.sort || P.dir !== d.dir ? 1 : 0); }
+function filtBtnLabel(){ const n = filtCount(); return `⚙ 絞り込み<span class="wide">・並び替え</span>${n ? `<span class="fc">${n}</span>` : ""} ${showFilt ? "▴" : "▾"}`; }
+function filtBoxHtml(){
+  if(!showFilt) return "";
+  const o = (v, t, cur) => `<option value="${v}" ${cur === v ? "selected" : ""}>${t}</option>`;
+  return `<div class="filtbox">
+    <label>回答状況<select onchange="P.st=this.value;updatePast()">${o("", "すべて", P.st)}${o("未回答", "未回答だけ", P.st)}${o("回答済み", "回答済みだけ", P.st)}</select></label>
+    <label>並び順<select onchange="P.sort=this.value;updatePast()">${Object.keys(PAST_SORT).map(k => o(k, PAST_SORT[k], P.sort)).join("")}</select></label>
+    ${P.sort !== "state" ? `<button class="btn gray sm" onclick="P.dir=P.dir==='asc'?'desc':'asc';updatePast()">${P.dir === "asc" ? "▲ 昇順" : "▼ 降順"}</button>` : ""}
+    ${filtCount() || P.kw ? `<a href="#" class="clr" onclick="P=P0();render();return false;">× 条件をクリア</a>` : ""}
+  </div>`;
+}
+/** 締め切り済みの一覧とボタンだけを書き直す（検索欄は書き直さないので、入力中でも途切れない） */
+function updatePast(){
+  const btn = document.getElementById("filtBtn"), box = document.getElementById("filtBox"), list = document.getElementById("pastList");
+  if(btn){ btn.innerHTML = filtBtnLabel(); btn.classList.toggle("on", showFilt); }
+  if(box) box.innerHTML = filtBoxHtml();
+  if(list) list.innerHTML = pastListHtml();
+}
 
 // ----- フォームを別ウィンドウで開く -----
 // フォームは横に小さい別ウィンドウで開く。閉じるか「回答を終えて戻る」を押すと、この画面に戻って一覧を最新にする。
