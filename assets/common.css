@@ -60,9 +60,9 @@ select,input,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radiu
 .loading::before{content:"";display:inline-block;width:18px;height:18px;border:3px solid #ccc;border-top-color:var(--red);border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;margin-right:8px}
 @keyframes spin{to{transform:rotate(360deg)}}
 /* 1行リスト */
-.list{background:#fff;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.15);overflow:hidden}
-.li{display:grid;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid #eee;font-size:13px}
-.li:last-child{border-bottom:none}
+/* 一覧：アンケート1件ずつを独立したカードにして、すき間で区切る */
+.list{display:flex;flex-direction:column;gap:10px}
+.li{display:grid;align-items:center;gap:12px;padding:12px 16px;font-size:13px;background:#fff;border:1px solid #e3e3e3;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.10)}
 .li:hover{background:#fdf5f5}
 .li>*{min-width:0}
 .li .t{font-weight:bold;font-size:14px;color:#222;overflow:hidden;text-overflow:ellipsis}
@@ -151,7 +151,7 @@ a{color:var(--red)}
 .month{font-weight:bold;color:#555;font-size:14px;margin:16px 0 6px;padding-bottom:4px;border-bottom:2px solid var(--line)}
 .month small{font-weight:normal;color:#888;margin-left:6px}
 /* 締め切りまでに答えなかったアンケートの行を目立たせる */
-.li.miss{background:#fff5f5;box-shadow:inset 4px 0 0 var(--red)}
+.li.miss{background:#fff5f5;border-color:#f3c9cd;box-shadow:inset 4px 0 0 var(--red),0 1px 3px rgba(0,0,0,.10)}
 .li.miss .pr{color:var(--red);font-weight:bold}
 .past-miss{color:var(--red);font-weight:bold}
 
