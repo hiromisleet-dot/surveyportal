@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アンケート管理</title>
-<link rel="stylesheet" href="assets/common.css?v=8">
-<script src="assets/config.js?v=8"></script>
-<script src="assets/common.js?v=8"></script>
+<link rel="stylesheet" href="assets/common.css?v=9">
+<script src="assets/config.js?v=9"></script>
+<script src="assets/common.js?v=9"></script>
 <style>
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;align-items:center}
 .tabs button{background:#fff;border:1px solid var(--line);color:#555;border-radius:18px;padding:8px 16px;font-size:14px;cursor:pointer;font-family:inherit}
@@ -15,6 +15,10 @@
 .kibar{display:flex;align-items:center;gap:8px;margin:0 0 12px}
 .kibar select{width:auto;margin:0;padding:8px 10px}
 .kibar .now{font-size:12px;color:#777}
+.kibar{flex-wrap:wrap}
+.kibar .rolelb{margin:0 0 0 16px}
+.kibar .rolesel{max-width:100%}
+@media(max-width:600px){.kibar .rolelb{margin-left:0}}
 #createBtn:disabled{background:#bbb;border-color:#bbb;color:#fff;cursor:not-allowed;opacity:1}
 .req{font-size:11px;color:var(--red);margin-left:2px}
 .need{color:var(--red);font-size:13px;margin:0 0 8px}
@@ -78,6 +82,8 @@ let ROLES = store.get(ROLES_KEY) || [];
 let tab = store.get(TAB_KEY) || "all";
 let view = null;
 let showClosed = false;
+const CREATE_KEY = "surveyCreateOpen";
+let showCreate = store.get(CREATE_KEY) === true; // 「新しいアンケートを作る」を開いているか（最初は閉じておく）
 const L0 = () => ({ kw: "", rt: "", dl: "", open: { sort: "deadline", dir: "asc" }, closed: { sort: "created", dir: "desc" } });
 let L = L0();
 const SORT_LABEL = { created: "作成日", deadline: "締め切り", title: "アンケート名", rate: "回答状況" };
@@ -208,17 +214,18 @@ function kiBarHtml(){
     <select onchange="setKiView(this.value)">
       ${list.map(k => `<option value="${k}" ${kiView === k ? "selected" : ""}>${k}期${k === CUR_KI ? "（今期）" : ""}</option>`).join("")}
       <option value="all" ${kiView === "all" ? "selected" : ""}>すべての期</option>
-    </select><span class="now">今期は${CUR_KI}期です</span></div>`;
+    </select><span class="now">今期は${CUR_KI}期です</span>${tabsHtml()}</div>`;
 }
 function tabsHtml(){
   if(!ROLES.length) return "";
   const cnt = f => DATA.filter(s => inKi(s) && !isClosed(s) && f(s)).length;
-  const b = (t, label, n) => `<button class="${tab === t ? "on" : ""}" onclick="setTab('${t}')">${esc(label)}<small>${n}</small></button>`;
-  let h = `<div class="tabs">` + b("all", "すべて", cnt(() => true));
-  activeRoles().forEach(r => { h += b(r.id, r.name, cnt(s => s.roleId === r.id)); });
+  // 役職はプルダウンで選ぶ（かっこの中は受付中・公開待ちの件数）
+  const o = (t, label, n) => `<option value="${t}" ${tab === t ? "selected" : ""}>${esc(label)}（${n}）</option>`;
+  let h = `<label class="rolelb">表示する役職</label><select class="rolesel" onchange="setTab(this.value)">` + o("all", "すべての役職", cnt(() => true));
+  activeRoles().forEach(r => { h += o(r.id, r.name, cnt(s => s.roleId === r.id)); });
   const none = cnt(s => !s.roleId || !roleName(s.roleId));
-  if(none || tab === "none") h += b("none", "未設定", none);
-  return h + `</div>`;
+  if(none || tab === "none") h += o("none", "役職が未設定", none);
+  return h + `</select>`;
 }
 function renderList(){
   const list = shown();
@@ -232,8 +239,7 @@ function renderList(){
   const kiName = kiView === "all" ? "すべての期" : kiView + "期";
   document.getElementById("app").innerHTML = `<div class="hello">アンケート管理<small>対象者は公開した時点で「在籍中」のメンバーに固定されます。${updating ? '　<span class="muted">最新の情報を確認中…</span>' : ""}</small></div>
     ${kiBarHtml()}
-    ${tabsHtml()}
-    <div class="panel"><h2>新しいアンケートを作る</h2>
+    <div class="panel fold"><details ${showCreate ? "open" : ""} ontoggle="showCreate=this.open;store.set(CREATE_KEY,this.open)"><summary>➕ 新しいアンケートを作る</summary><div class="in">
       <div class="form-grid">
         <div><label>タイトル <span class="req">必須</span></label><input id="ttl" placeholder="例：11月 定例会の満足度アンケート" oninput="checkReady()"></div>
         <div><label>締め切り <span class="req">必須</span></label><input id="dl" type="date" min="${todayStr()}" onchange="checkReady()" oninput="checkReady()"></div>
@@ -246,14 +252,14 @@ function renderList(){
       </div>
       <div class="form-grid">
         <div><label>作成者 <span class="req">必須</span></label><input id="author" placeholder="お名前" value="${esc(localStorage.getItem(AUTHOR_KEY) || "")}" oninput="checkReady()"></div>
-        <div><label>リスト外の回答</label><label class="chk"><input type="checkbox" id="guest"> 名簿にない人も回答できるようにする</label></div>
       </div>
       <div class="form-grid">
+        <div><label>リスト外の回答</label><label class="chk"><input type="checkbox" id="guest"> 名簿にない人も回答できるようにする</label></div>
         <div><label>回答の公開</label><label class="chk"><input type="checkbox" id="secret"> 🔒 回答を非公開にする（管理者だけが見られる）</label></div>
       </div>
       <p id="needMsg" class="need">必要事項をすべて入力してください</p>
       <button class="btn" id="createBtn" onclick="createSurvey()" disabled>作成する</button>
-      <p class="muted">作成すると、名前のプルダウン入りのGoogleフォームができます。完了の画面に出るリンクから、聞きたい質問を足してください。公開日時を入れた場合は、その時刻まで「公開待ち」になります（最大15分遅れます）。期は今期が最初から入っています。次の期のアンケートを先に作るときは切り替えてください。</p></div>
+      <p class="muted">作成すると、名前のプルダウン入りのGoogleフォームができます。完了の画面に出るリンクから、聞きたい質問を足してください。公開日時を入れた場合は、その時刻まで「公開待ち」になります（最大15分遅れます）。期は今期が最初から入っています。次の期のアンケートを先に作るときは切り替えてください。</p></div></details></div>
     <div class="panel"><h2>${tabName}回答状況</h2>
       <div class="dash">
         <div class="tile"><div class="lb">📝 受付中のアンケート</div><div class="num">${curOpen.length}<small>件</small></div><div class="sub">今期（${CUR_KI}期）の締め切り済み ${curClosedN}件</div></div>

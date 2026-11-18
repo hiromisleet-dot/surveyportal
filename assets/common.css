@@ -16,6 +16,13 @@ main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
 .panel.past summary::after{content:"＋ 表示する";margin-left:auto;font-size:12px;color:var(--red)}
 .panel.past details[open] summary::after{content:"－ 閉じる"}
 .panel.past .in{padding:0 20px 16px}
+/* たたんだり開いたりできるパネル（新しいアンケートを作る） */
+.panel.fold{padding:0;overflow:hidden}
+.panel.fold summary{padding:18px 20px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;color:var(--red);font-size:20px}
+.panel.fold summary::-webkit-details-marker{display:none}
+.panel.fold summary::after{content:"＋ 開く";margin-left:auto;font-size:12px;color:var(--red)}
+.panel.fold details[open] summary::after{content:"－ 閉じる"}
+.panel.fold .in{padding:0 20px 20px}
 .sec-note{font-size:12px;color:#777;margin:-8px 0 12px}
 .btn{background:var(--red);color:#fff;border:none;border-radius:4px;padding:11px 18px;font-size:14px;cursor:pointer;font-family:inherit}
 .btn:hover{background:var(--dark)}
