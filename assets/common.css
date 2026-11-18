@@ -30,7 +30,7 @@ select,input,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radiu
 .form-grid2{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
 @media(max-width:600px){.form-grid,.form-grid2{grid-template-columns:1fr}}
 .bar{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin-top:10px}
-.bar span{display:block;height:100%;background:#38a169}
+.bar span{display:block;height:100%;background:#888}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid var(--red);color:var(--red);white-space:nowrap}
 .tag.open{background:var(--red);color:#fff}
 .tag.closed{border-color:#999;background:#999;color:#fff}
@@ -62,7 +62,7 @@ select,input,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radiu
 .li .t small{display:block;font-weight:normal;color:#777;font-size:12px;margin-top:2px}
 .li .dl,.li .at{color:#666}
 .li.closed .t{color:#888}
-.li.closed .bar span{background:#999}
+.li.closed .bar span{background:#bbb}
 .li.r1{grid-template-columns:minmax(0,1fr) 220px 120px}
 .li.r3{grid-template-columns:minmax(0,1fr) 220px 190px 200px}
 /* 作る人の一覧：1行目に状態・アンケート名・タグ、2行目に回答状況・締め切り・ボタン */
@@ -114,7 +114,7 @@ select,input,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radiu
 .sr{display:grid;grid-template-columns:7.5em 1fr auto;gap:8px;align-items:center;padding:6px 4px;font-size:13px}
 .sr>span:first-child{overflow:hidden;text-overflow:ellipsis}
 .sb{height:12px;background:#eee;border-radius:6px;overflow:hidden}
-.sb span{display:block;height:100%;background:#38a169}
+.sb span{display:block;height:100%;background:#888}
 .sn{text-align:right;white-space:nowrap;min-width:5.5em}
 .sn small{color:#888;margin-left:4px}
 .txt{background:#fff;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.15);margin-bottom:12px;overflow:hidden}
