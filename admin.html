@@ -7,9 +7,9 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon-admin.svg">
 <link rel="icon" type="image/png" href="assets/favicon-admin.png">
 <link rel="apple-touch-icon" href="assets/favicon-admin.png">
-<link rel="stylesheet" href="assets/common.css?v=15">
-<script src="assets/config.js?v=15"></script>
-<script src="assets/common.js?v=15"></script>
+<link rel="stylesheet" href="assets/common.css?v=16">
+<script src="assets/config.js?v=16"></script>
+<script src="assets/common.js?v=16"></script>
 <style>
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;align-items:center}
 .tabs button{background:#fff;border:1px solid var(--line);color:#555;border-radius:18px;padding:8px 16px;font-size:14px;cursor:pointer;font-family:inherit}
@@ -274,7 +274,7 @@ function renderList(){
         <div><label>リスト外の回答</label><label class="chk"><input type="checkbox" id="guest"> 名簿にない人も回答できるようにする</label></div>
       </div>
       <div class="form-grid">
-        <div><label>回答の表示</label><label class="chk"><input type="checkbox" id="secret"> ${ic("lock")}回答を非表示にする（管理者だけが見られる）</label></div>
+        <div><label>${ic("lock")}回答の表示</label><label class="chk"><input type="checkbox" id="secret"> 回答を非表示にする（管理者だけが見られる）</label></div>
       </div>
       <div class="form-grid">
         <div><label>期</label>${kiSelect("kiSel", CUR_KI)}</div>
@@ -683,8 +683,8 @@ function editSurvey(id){
     <label>リスト外の回答</label>
     <label class="chk"><input type="checkbox" id="eg" ${s.allowGuest ? "checked" : ""} ${canUnit ? "" : "disabled"}> 名簿にない人も回答できるようにする</label>
     <p class="muted">${canUnit ? "オンにすると、フォームの名前の選択肢に「リストにない方」が加わり、選んだ人は名前を書いてから質問に進みます。" : "リスト外の受け付けも、公開したあとは変えられません。"}</p>
-    <label>回答の表示</label>
-    <label class="chk"><input type="checkbox" id="es" ${s.secret ? "checked" : ""}> ${ic("lock")}回答を非表示にする（管理者だけが見られる）</label>
+    <label>${ic("lock")}回答の表示</label>
+    <label class="chk"><input type="checkbox" id="es" ${s.secret ? "checked" : ""}> 回答を非表示にする（管理者だけが見られる）</label>
     <p class="muted">オンにすると、回答する人の画面で「回答を見る」「修正する」が出なくなり、自分の答えも他の人の答えも見られなくなります。直したい人は「答え直す」で最初から送り直します。いつでも切り替えられます。</p>
     <button class="btn" onclick="doEdit('${id}')">保存する</button> <button class="btn gray" onclick="closeModal()">キャンセル</button>`);
 }

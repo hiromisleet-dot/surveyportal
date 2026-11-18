@@ -175,3 +175,4 @@ header .logo svg{width:30px;height:30px;flex:none}
 .search .ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#999;pointer-events:none}
 .search input{width:100%;padding-left:36px;margin:0}
 .tile .lb .ic{color:var(--red);margin-right:.35em}
+label > .ic{margin-right:.3em;color:#888}
