@@ -65,7 +65,9 @@ select,input,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radiu
 .li.closed .bar span{background:#999}
 .li.r1{grid-template-columns:minmax(0,1fr) 220px 120px}
 .li.r3{grid-template-columns:minmax(0,1fr) 220px 190px 200px}
-.li.c{grid-template-columns:90px minmax(0,1fr) 200px 150px 250px}
+/* 作る人の一覧：1行目に状態・アンケート名・タグ、2行目に回答状況・締め切り・ボタン */
+.li.c{grid-template-columns:90px minmax(0,1fr) auto auto;grid-template-areas:"tg t t t" "pr pr dl ac";gap:6px 12px}
+.li.c .tg{grid-area:tg}.li.c .t{grid-area:t}.li.c .prog{grid-area:pr;max-width:420px}.li.c .dl{grid-area:dl}.li.c .acts{grid-area:ac}
 .acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
 .mini{background:var(--red);color:#fff;border:none;border-radius:4px;padding:7px 12px;font-size:12px;cursor:pointer;white-space:nowrap;font-family:inherit}
 .mini:hover{background:var(--dark)}
@@ -80,7 +82,6 @@ select,input,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radiu
 /* タブレットくらいの幅：アンケート名を1行目に広く取り、ほかを2行目に並べる */
 @media(max-width:900px){
   .li.r3{grid-template-columns:auto auto minmax(0,1fr);grid-template-areas:"t t t" "dl at ac";gap:6px 16px}
-  .li.c{grid-template-columns:90px minmax(0,1fr) auto auto;grid-template-areas:"tg t t t" "pr pr dl ac";gap:6px 12px}
   .li .tg{grid-area:tg}.li .t{grid-area:t}.li .dl{grid-area:dl}.li .at{grid-area:at}.li .prog{grid-area:pr}.li .acts{grid-area:ac}
 }
 @media(max-width:600px){
