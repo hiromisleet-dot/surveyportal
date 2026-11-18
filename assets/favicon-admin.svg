@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 作る人の画面：濃い灰色の地に、回答率のグラフが入ったクリップボード -->
+  <rect width="64" height="64" rx="14" fill="#3a3a3a"/>
+  <rect x="15" y="12" width="34" height="42" rx="5" fill="#fff"/>
+  <rect x="24" y="8" width="16" height="9" rx="3" fill="#fff" stroke="#3a3a3a" stroke-width="3"/>
+  <rect x="21" y="36" width="6" height="11" rx="1.5" fill="#cf2030"/>
+  <rect x="29" y="29" width="6" height="18" rx="1.5" fill="#cf2030"/>
+  <rect x="37" y="23" width="6" height="24" rx="1.5" fill="#cf2030"/>
+</svg>

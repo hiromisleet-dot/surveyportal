@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 回答する人の画面：赤い地に、チェックの入ったクリップボード -->
+  <rect width="64" height="64" rx="14" fill="#cf2030"/>
+  <rect x="15" y="12" width="34" height="42" rx="5" fill="#fff"/>
+  <rect x="24" y="8" width="16" height="9" rx="3" fill="#fff" stroke="#cf2030" stroke-width="3"/>
+  <path d="M22 34 l7 7 l13 -14" fill="none" stroke="#cf2030" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
