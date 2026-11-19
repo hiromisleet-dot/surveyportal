@@ -7,9 +7,9 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon-admin.svg">
 <link rel="icon" type="image/png" href="assets/favicon-admin.png">
 <link rel="apple-touch-icon" href="assets/favicon-admin.png">
-<link rel="stylesheet" href="assets/common.css?v=17">
-<script src="assets/config.js?v=17"></script>
-<script src="assets/common.js?v=17"></script>
+<link rel="stylesheet" href="assets/common.css?v=18">
+<script src="assets/config.js?v=18"></script>
+<script src="assets/common.js?v=18"></script>
 <style>
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;align-items:center}
 .tabs button{background:#fff;border:1px solid var(--line);color:#555;border-radius:18px;padding:8px 16px;font-size:14px;cursor:pointer;font-family:inherit}
@@ -22,6 +22,11 @@
 .kibar .rolelb{margin:0 0 0 16px}
 .kibar .rolesel{max-width:100%}
 .pubclr{font-size:12px;margin-left:8px}
+.kibar .setbtn{margin-left:auto;white-space:nowrap}
+.setmenu{width:340px;max-width:calc(100vw - 16px)}
+.actmenu.setmenu button{display:flex;flex-wrap:wrap;align-items:center;line-height:1.4}
+.actmenu.setmenu button small{display:block;flex-basis:100%;font-size:11px;color:#888;margin:2px 0 0 1.45em}
+@media(max-width:600px){.kibar .setbtn{margin-left:0}}
 .rm-list{display:flex;flex-direction:column;gap:6px;margin:10px 0 16px;max-height:55vh;overflow:auto}
 .rm-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;background:#fff;border:1px solid #e3e3e3;border-radius:8px;padding:8px 10px}
 .rm-row.off{background:#f6f6f6}
@@ -319,7 +324,7 @@ function kiBarHtml(){
     <select onchange="setKiView(this.value)">
       ${list.map(k => `<option value="${k}" ${kiView === k ? "selected" : ""}>${k}期${k === CUR_KI ? "（今期）" : ""}</option>`).join("")}
       <option value="all" ${kiView === "all" ? "selected" : ""}>すべての期</option>
-    </select><span class="now">今期は${CUR_KI}期です</span>${tabsHtml()}</div>`;
+    </select><span class="now">今期は${CUR_KI}期です</span>${tabsHtml()}<button class="btn gray sm setbtn" onclick="openSettingsMenu(event)">${ic("gear")}設定${ic("down")}</button></div>`;
 }
 function tabsHtml(){
   if(!ROLES.length) return "";
@@ -380,9 +385,7 @@ ${toolHtml("open")}
       <div id="list_open">${listHtml("open")}</div></div>
     <div class="panel past"><details ${showClosed ? "open" : ""} ontoggle="showClosed=this.open"><summary>${ic("lock")}締め切り済みのアンケート（${kiName}・${closedN}件）</summary>
       <div class="in">${toolHtml("closed")}<div id="list_closed">${listHtml("closed")}</div></div></details></div>
-    <button class="outline" onclick="roleManager()">${ic("sliders")}役職の管理（追加・名前の変更・使う／使わない）</button>
-    <button class="outline" onclick="reloadMaster()">${ic("users")}メンバー・班・役職をNotionから読み直す</button>
-    <p class="muted" style="text-align:center">Notionで入会・退会や班替え、役職を直接直したあとに押すと、すぐ画面に反映されます（ふだんは1日1回、自動で読み直します）。</p>`;
+`;
 }
 function listRows(kind){
   let rows = shown().filter(s => kind === "open" ? !isClosed(s) : isClosed(s));
@@ -451,6 +454,39 @@ function openActMenu(ev, id){
   let top = r.bottom + 4; if(top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
   m.style.left = left + "px"; m.style.top = top + "px";
 }
+/** 画面上の「設定」メニュー：役職の管理・Notionから読み直す・回答用URLのコピー・使い方ガイド */
+function openSettingsMenu(ev){
+  ev.stopPropagation();
+  const cur = document.getElementById("actMenu");
+  const same = cur && cur.dataset.id === "__settings";
+  closeActMenu();
+  if(same) return;
+  const m = document.createElement("div");
+  m.id = "actMenu"; m.className = "actmenu setmenu"; m.dataset.id = "__settings";
+  const item = (fn, icon, label, note) => `<button onclick="closeActMenu();${fn}()">${ic(icon)}${label}${note ? `<small>${note}</small>` : ""}</button>`;
+  m.innerHTML = item("roleManager", "list", "役職の管理", "追加・名前の変更・使う／使わない・並び順")
+    + item("reloadMaster", "refresh", "メンバー・班・役職をNotionから読み直す", "Notionで入会・退会・班替えをしたあとに（ふだんは1日1回、自動）")
+    + "<hr>"
+    + item("copyAnswerUrl", "link", "回答する人の画面のURLをコピー", "メッセンジャーに流すURL")
+    + (typeof GUIDE_URL !== "undefined" && GUIDE_URL ? item("openGuide", "book", "使い方ガイドを開く", "") : "");
+  m.addEventListener("click", e => e.stopPropagation());
+  document.body.appendChild(m);
+  const r = ev.currentTarget.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+  let left = Math.min(r.right - w, window.innerWidth - w - 8); if(left < 8) left = 8;
+  let top = r.bottom + 4; if(top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+  m.style.left = left + "px"; m.style.top = top + "px";
+}
+/** 回答する人の画面（この画面と同じ場所の index）のURL */
+const answerUrl = () => new URL("./", location.href).href;
+function copyAnswerUrl(){
+  const v = answerUrl();
+  const show = () => modal(`<h3 style="margin-top:0">${ic("link")}回答する人の画面のURL</h3>
+    <p class="muted">メッセンジャーには、このURLを流してください。</p>
+    <input id="ansUrl" value="${esc(v)}" readonly onclick="this.select()">
+    <button class="btn" onclick="document.getElementById('ansUrl').select();document.execCommand('copy');toast('コピーしました')">コピーする</button> <button class="btn gray" onclick="closeModal()">閉じる</button>`);
+  if(navigator.clipboard) navigator.clipboard.writeText(v).then(() => toast("回答する人の画面のURLをコピーしました")).catch(show); else show();
+}
+function openGuide(){ window.open(GUIDE_URL, "_blank", "noopener"); }
 function closeActMenu(){ const m = document.getElementById("actMenu"); if(m) m.remove(); }
 document.addEventListener("click", closeActMenu);
 document.addEventListener("keydown", e => { if(e.key === "Escape") closeActMenu(); });
