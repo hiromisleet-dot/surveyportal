@@ -7,9 +7,9 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon-admin.svg">
 <link rel="icon" type="image/png" href="assets/favicon-admin.png">
 <link rel="apple-touch-icon" href="assets/favicon-admin.png">
-<link rel="stylesheet" href="assets/common.css?v=16">
-<script src="assets/config.js?v=16"></script>
-<script src="assets/common.js?v=16"></script>
+<link rel="stylesheet" href="assets/common.css?v=17">
+<script src="assets/config.js?v=17"></script>
+<script src="assets/common.js?v=17"></script>
 <style>
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;align-items:center}
 .tabs button{background:#fff;border:1px solid var(--line);color:#555;border-radius:18px;padding:8px 16px;font-size:14px;cursor:pointer;font-family:inherit}
@@ -22,6 +22,16 @@
 .kibar .rolelb{margin:0 0 0 16px}
 .kibar .rolesel{max-width:100%}
 .pubclr{font-size:12px;margin-left:8px}
+.rm-list{display:flex;flex-direction:column;gap:6px;margin:10px 0 16px;max-height:55vh;overflow:auto}
+.rm-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;background:#fff;border:1px solid #e3e3e3;border-radius:8px;padding:8px 10px}
+.rm-row.off{background:#f6f6f6}
+.rm-row.off .rm-name{color:#999}
+.rm-move{display:flex;gap:4px}
+.rm-move .mini{padding:4px 6px}
+.rm-move .mini .ic{margin:0}
+.rm-acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.rm-off{display:inline-block;font-size:11px;color:#fff;background:#999;border-radius:8px;padding:0 6px;margin-left:8px}
+@media(max-width:600px){.rm-row{grid-template-columns:auto 1fr}.rm-acts{grid-column:1/-1;justify-content:flex-start}}
 @media(max-width:600px){.kibar .rolelb{margin-left:0}}
 #createBtn:disabled{background:#bbb;border-color:#bbb;color:#fff;cursor:not-allowed;opacity:1}
 .req{font-size:11px;color:var(--red);margin-left:2px}
@@ -212,9 +222,86 @@ function clearPub(){
   const el = document.getElementById("pub");
   if(el){ el.value = ""; checkReady(); }
 }
-function roleSelect(id, selected, onchg){
-  return `<select id="${id}"${onchg ? ` onchange="${onchg}"` : ""}><option value="">（役職を選ばない）</option>` +
-    activeRoles().map(r => `<option value="${r.id}" ${r.id === selected ? "selected" : ""}>${esc(r.name)}</option>`).join("") + `</select>`;
+function roleSelect(id, selected, onchg, allowAdd){
+  return `<select id="${id}" data-prev="${esc(selected || "")}"${onchg ? ` onchange="${onchg}"` : ""}><option value="">（役職を選ばない）</option>` +
+    activeRoles().map(r => `<option value="${r.id}" ${r.id === selected ? "selected" : ""}>${esc(r.name)}</option>`).join("") +
+    (allowAdd ? `<option value="__new">＋ 新しい役職を追加…</option>` : "") + `</select>`;
+}
+/** 作成欄の役職を選んだとき。「＋ 新しい役職を追加…」なら、元の選択に戻して追加の画面を開く */
+function onRoleChange(el){
+  if(el.value === "__new"){ el.value = el.dataset.prev || ""; addRoleModal(el.id); return; }
+  el.dataset.prev = el.value;
+  checkReady();
+}
+
+// ----- 役職の追加・管理（消さずに「使わない」にして休ませる） -----
+/** 役職を追加する画面。from は追加したあとに選ぶプルダウンのID（"role"）か、管理画面から開いたときは "manage" */
+function addRoleModal(from){
+  const by = ((document.getElementById("author") || {}).value || localStorage.getItem(AUTHOR_KEY) || "").trim();
+  modal(`<h3 style="margin-top:0">${ic("plus")}新しい役職を追加</h3>
+    <label>役職名 <span class="req">必須</span></label><input id="nrName" placeholder="例：実行委員" maxlength="40">
+    <label>登録する人</label><input id="nrBy" placeholder="お名前" value="${esc(by)}">
+    <p class="muted">同じ名前の役職がすでにあるときは、追加せずにお知らせします。「使わない」にしている役職と同じ名前なら、その役職を「使う」に戻します。使い終わった役職は、画面の下の「役職の管理」で「使わない」にできます。</p>
+    ${activeRoles().length ? `<p class="muted">いまある役職：${activeRoles().map(r => esc(r.name)).join("、")}</p>` : ""}
+    <button class="btn" onclick="doAddRole('${from}')">追加する</button> <button class="btn gray" onclick="${from === "manage" ? "roleManager()" : "closeModal()"}">キャンセル</button>`);
+  setTimeout(() => { const el = document.getElementById("nrName"); if(el) el.focus(); }, 50);
+}
+async function doAddRole(from){
+  const name = document.getElementById("nrName").value.trim(), by = document.getElementById("nrBy").value.trim();
+  if(!name){ toast("役職名を入れてください"); return; }
+  modal(`<div class="loading">追加しています…</div>`);
+  try {
+    const r = await api("apiAddRole", name, by);
+    ROLES = r.roles; store.set(ROLES_KEY, ROLES);
+    render();
+    if(from === "role"){
+      const el = document.getElementById("role");
+      if(el){ el.value = r.role.id; el.dataset.prev = r.role.id; checkReady(); }
+    }
+    toast(r.revived ? `「${r.role.name}」を「使う」に戻しました` : `「${r.role.name}」を追加しました`);
+    if(from === "manage") roleManager(); else closeModal();
+  } catch(e){
+    modal(`<p>追加できませんでした：${esc(errMsg(e))}</p><button class="btn gray" onclick="addRoleModal('${from}')">戻る</button>`);
+  }
+}
+/** 役職の管理画面：使う／使わない、名前の変更、並び順 */
+function roleManager(){
+  const rows = ROLES.map((r, i) => `<div class="rm-row${r.active ? "" : " off"}">
+      <div class="rm-move"><button class="mini gray" title="上へ" ${i === 0 ? "disabled" : ""} onclick="moveRole('${r.id}',-1)">${ic("up")}</button><button class="mini gray" title="下へ" ${i === ROLES.length - 1 ? "disabled" : ""} onclick="moveRole('${r.id}',1)">${ic("down")}</button></div>
+      <div class="rm-name">${esc(r.name)}${r.active ? "" : '<span class="rm-off">使わない</span>'}</div>
+      <div class="rm-acts"><button class="mini gray" onclick="renameRoleModal('${r.id}')">${ic("pencil")}名前を変える</button><button class="mini${r.active ? " gray" : ""}" onclick="setRoleActive('${r.id}', ${!r.active})">${r.active ? "使わないにする" : "使うに戻す"}</button></div>
+    </div>`).join("");
+  modal(`<h3 style="margin-top:0">${ic("users")}役職の管理</h3>
+    <p class="muted">「使わない」にした役職は、作成欄と「表示する役職」に出なくなります。過去のアンケートには役職名が残り、「使うに戻す」でいつでも戻せます。上下の矢印で、プルダウンに並ぶ順番を変えられます。</p>
+    <div class="rm-list">${rows || '<div class="empty">役職はまだありません</div>'}</div>
+    <button class="btn" onclick="addRoleModal('manage')">${ic("plus")}新しい役職を追加</button> <button class="btn gray" onclick="closeModal()">閉じる</button>`);
+}
+async function roleAction(fn, args, msg){
+  modal(`<div class="loading">保存しています…</div>`);
+  try {
+    ROLES = await api.apply(null, [fn].concat(args)); store.set(ROLES_KEY, ROLES);
+    if(tab !== "all" && tab !== "none" && !activeRoles().some(r => r.id === tab)) setTab("all", true);
+    render(); roleManager(); if(msg) toast(msg);
+  } catch(e){
+    modal(`<p>保存できませんでした：${esc(errMsg(e))}</p><button class="btn gray" onclick="roleManager()">戻る</button>`);
+  }
+}
+function setRoleActive(id, on){
+  const r = ROLES.find(x => x.id === id) || {};
+  roleAction("apiUpdateRole", [id, { active: on }], on ? `「${r.name}」を使うに戻しました` : `「${r.name}」を使わないにしました`);
+}
+function moveRole(id, dir){ roleAction("apiMoveRole", [id, dir]); }
+function renameRoleModal(id){
+  const r = ROLES.find(x => x.id === id) || {};
+  modal(`<h3 style="margin-top:0">${ic("pencil")}役職の名前を変える</h3>
+    <label>新しい名前</label><input id="rnName" value="${esc(r.name || "")}" maxlength="40">
+    <p class="muted">名前を変えると、この役職が付いた過去のアンケートの表示も、新しい名前に変わります。</p>
+    <button class="btn" onclick="doRenameRole('${id}')">変更する</button> <button class="btn gray" onclick="roleManager()">戻る</button>`);
+}
+function doRenameRole(id){
+  const name = document.getElementById("rnName").value.trim();
+  if(!name){ toast("名前を入れてください"); return; }
+  roleAction("apiUpdateRole", [id, { name: name }], `名前を「${name}」に変えました`);
 }
 function kiSelect(id, selected){
   const sel = Number(selected) || CUR_KI;
@@ -264,7 +351,7 @@ function renderList(){
         <div><label>公開日時（空ならすぐ公開）<a href="#" class="pubclr" onclick="clearPub();return false;">空にする</a></label><input id="pub" type="datetime-local" onfocus="fillPubNow()" onclick="fillPubNow()" onchange="checkReady()" oninput="checkReady()"></div>
       </div>
       <div class="form-grid">
-        <div><label>役職（どの役職が出すアンケートか）${ROLES.length ? ' <span class="req">必須</span>' : ""}</label>${roleSelect("role", tab !== "all" && tab !== "none" ? tab : "", "checkReady()")}</div>
+        <div><label>役職（どの役職が出すアンケートか）${ROLES.length ? ' <span class="req">必須</span>' : ""}</label>${roleSelect("role", tab !== "all" && tab !== "none" ? tab : "", "onRoleChange(this)", true)}</div>
         <div><label>回答の単位 <span class="req">必須</span></label><select id="unit" onchange="checkReady()"><option value="">…</option><option value="人ごと">人ごと（1人1回答）</option><option value="班ごと">班ごと（1班1回答）</option></select></div>
       </div>
       <div class="form-grid">
@@ -293,8 +380,9 @@ ${toolHtml("open")}
       <div id="list_open">${listHtml("open")}</div></div>
     <div class="panel past"><details ${showClosed ? "open" : ""} ontoggle="showClosed=this.open"><summary>${ic("lock")}締め切り済みのアンケート（${kiName}・${closedN}件）</summary>
       <div class="in">${toolHtml("closed")}<div id="list_closed">${listHtml("closed")}</div></div></details></div>
+    <button class="outline" onclick="roleManager()">${ic("sliders")}役職の管理（追加・名前の変更・使う／使わない）</button>
     <button class="outline" onclick="reloadMaster()">${ic("users")}メンバー・班・役職をNotionから読み直す</button>
-    <p class="muted" style="text-align:center">入会・退会や班替え、役職の追加をしたあとに押すと、すぐ画面に反映されます（ふだんは1日1回、自動で読み直します）。</p>`;
+    <p class="muted" style="text-align:center">Notionで入会・退会や班替え、役職を直接直したあとに押すと、すぐ画面に反映されます（ふだんは1日1回、自動で読み直します）。</p>`;
 }
 function listRows(kind){
   let rows = shown().filter(s => kind === "open" ? !isClosed(s) : isClosed(s));
